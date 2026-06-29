@@ -1,6 +1,16 @@
 /* karikounkel.com — the app. Injects styles + markup + behavior, reads window.MARBLES.
    Served from GitHub Pages; the DreamHost shell just loads this. Edit + push = live. */
 (function(){
+  // --- Google Analytics (GA4) ---
+  var ga = document.createElement("script");
+  ga.async = true;
+  ga.src = "https://www.googletagmanager.com/gtag/js?id=G-WHKMKCD1SD";
+  document.head.appendChild(ga);
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = function(){ dataLayer.push(arguments); };
+  gtag("js", new Date());
+  gtag("config", "G-WHKMKCD1SD");
+
   var PAGES = "https://kari-kounkel.github.io/karikounkel/";
   var JAR = PAGES + "jar.png";
 
