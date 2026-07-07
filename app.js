@@ -43,8 +43,8 @@
   .marble:hover{transform:scale(1.07);}
   .marble.drag{cursor:grabbing;animation:none;z-index:9999;transform:scale(1.12);}
   @keyframes bob{0%,100%{margin-top:0;}50%{margin-top:-9px;}}
-  .jarzone{position:absolute;left:50%;transform:translateX(-50%);bottom:8px;width:400px;z-index:6;pointer-events:none;}
-  .glass{width:400px;height:auto;display:block;transition:filter .2s;mix-blend-mode:multiply;}
+  .jarzone{position:absolute;left:50%;transform:translateX(-50%);bottom:8px;width:min(400px,86vw);z-index:6;pointer-events:none;}
+  .glass{width:100%;height:auto;display:block;transition:filter .2s;mix-blend-mode:multiply;}
   .jarzone.hot .glass{filter:drop-shadow(0 0 18px #E5006E);}
   .droplabel{position:absolute;top:54%;left:0;right:0;text-align:center;font-family:"Caveat",cursive;font-weight:700;font-size:22px;color:#b6abcb;transition:opacity .3s;}
   .controls{text-align:center;margin-top:14px;}
@@ -118,7 +118,7 @@
 
   // --- data + behavior ---
   var items = window.MARBLES || [];
-  var SIZE=90, INJAR=46, dropped=0;
+  var SIZE=(window.innerWidth<560?74:90), INJAR=46, dropped=0;
   var stage=document.getElementById("stage"), glass=document.getElementById("glass"),
       jarzone=document.getElementById("jarzone"), tray=document.getElementById("tray"), droplabel=document.getElementById("droplabel");
   var opened={};
