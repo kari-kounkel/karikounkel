@@ -207,8 +207,8 @@
     nodes.forEach(function(o, i){
       var x, y, size = baseSize + i*grow;
       if(i === N-1){
-        // "what's next?" breaks off to the left — heading a new direction
-        x = S*0.075; y = S*0.66; size = baseSize + (N-5)*grow;
+        // "what's next?" launches up to the top-left — heading a new direction
+        x = S*0.085; y = S*0.16; size = baseSize + (N-5)*grow;
       } else {
         var th = th0 + i*dth, r = r0 + i*dr;
         x = cx + r*Math.cos(th); y = cy + r*Math.sin(th);
