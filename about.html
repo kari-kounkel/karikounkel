@@ -31,11 +31,13 @@
     background:linear-gradient(100deg,#E5006E,#8B3DFF);-webkit-background-clip:text;background-clip:text;color:transparent;}
   .pq-small{font-size:15px;color:#4a3d63;margin-top:12px;line-height:1.55;max-width:520px;margin-left:auto;margin-right:auto;}
 
-  /* TIMELINE */
-  .tl{position:relative;max-width:840px;margin:20px auto 0;padding:10px 0 40px;}
+  /* TIMELINE — arranged as a many-pointed star */
+  .tl{position:relative;width:100%;max-width:660px;margin:22px auto 8px;aspect-ratio:1/1;}
   .tl-path{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:visible;}
-  .ev{position:relative;z-index:1;display:flex;align-items:center;gap:18px;margin:0 0 50px;}
-  .ev.right{flex-direction:row-reverse;text-align:right;}
+  .mnode{position:absolute;transform:translate(-50%,-50%);z-index:2;}
+  .mnode .bubble{width:100%;height:100%;}
+  .myr{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:5px;font-family:"Caveat",cursive;
+    font-weight:700;font-size:15px;color:var(--pink);white-space:nowrap;line-height:1;pointer-events:none;text-shadow:0 1px 4px #fff,0 0 3px #fff;}
   .bubble{flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;
     font-family:Georgia,"Times New Roman",serif;font-weight:400;text-align:center;line-height:1.1;cursor:pointer;border:none;padding:0;position:relative;
     text-shadow:0 1px 3px rgba(0,0,0,.35);animation:bob 6s ease-in-out infinite;transition:transform .2s, box-shadow .25s;
@@ -45,10 +47,7 @@
   .bubble .shine{position:absolute;top:18%;left:22%;width:30%;height:24%;border-radius:50%;background:rgba(255,255,255,.8);filter:blur(2px);pointer-events:none;}
   .bubble .blab{padding:0 8px;pointer-events:none;}
   @keyframes bob{0%,100%{margin-top:0;}50%{margin-top:-9px;}}
-  .cap{max-width:280px;}
-  .cap-yr{font-family:"Caveat",cursive;font-weight:700;font-size:23px;color:var(--pink);line-height:1;}
-  .cap-ti{font-family:Georgia,"Times New Roman",serif;font-weight:700;font-size:19px;color:var(--ink);margin-top:2px;line-height:1.2;}
-  .cap-hint{font-size:12px;color:var(--muted);margin-top:4px;font-weight:600;}
+  .star-hint{text-align:center;font-family:"Caveat",cursive;font-weight:700;font-size:19px;color:var(--muted);margin:-2px auto 2px;}
 
   /* THE KEEPER — the payoff */
   .keeper-card{max-width:360px;margin:8px auto 4px;background:#fff;border-radius:26px;padding:16px 16px 20px;text-align:center;
@@ -84,11 +83,8 @@
   footer .wink{font-family:"Caveat",cursive;font-weight:700;font-size:22px;color:var(--pink);display:block;margin-top:8px;}
   footer a{color:var(--purple);text-decoration:none;font-weight:700;}
 
-  @media(max-width:560px){
-    .cap{max-width:150px;}
-    .cap-ti{font-size:16px;}
-    .ev{gap:12px;margin-bottom:44px;}
-  }
+  @media(max-width:520px){ .myr{font-size:12px;} }
+  @media(max-width:400px){ .myr{display:none;} }
 </style>
 </head>
 <body>
@@ -197,56 +193,48 @@ var OFFSETS = [-6, 16, -20, 24, -8, 20, -16, 10, -22, 6, -14, 18, -10, 14];
   var svg = document.getElementById('tlpath');
   var isMobile = window.innerWidth < 560;
 
-  EVENTS.forEach(function(e, i){
-    var side = (i % 2 === 0) ? 'left' : 'right';
-    var row = document.createElement('div');
-    row.className = 'ev ' + side;
-    var off = OFFSETS[i % OFFSETS.length] * (isMobile ? 0.35 : 1);
-    row.style.transform = 'translateX(' + off + '%)';
+  function gcd(a,b){ while(b){ var t=b; b=a%b; a=t; } return a; }
+  // pick a "skip" that draws one continuous many-pointed star through all N points
+  function starStep(n){ var t=Math.max(2, Math.round(n*0.38)); for(var s=t;s>=2;s--){ if(gcd(s,n)===1) return s; } return 1; }
 
-    var size = (isMobile ? 80 : 100) + (i % 3) * (isMobile ? 8 : 18);
-    var bub = document.createElement('button');
-    bub.className = 'bubble';
-    bub.style.width = size + 'px';
-    bub.style.height = size + 'px';
-    bub.style.fontSize = (e.bubble.length > 3 ? (isMobile?12:14) : (isMobile?22:30)) + 'px';
+  var N = EVENTS.length, nodes = [];
+  EVENTS.forEach(function(e, i){
+    var node = document.createElement('div'); node.className = 'mnode';
+    var bub = document.createElement('button'); bub.className = 'bubble';
     bub.style.background = 'radial-gradient(circle at 35% 30%, ' + e.color + '66, ' + e.color + 'DD 60%, ' + e.color + ' 100%)';
     bub.style.boxShadow = '0 0 22px ' + e.color + 'AA, 0 0 9px ' + e.color + ', inset 0 -6px 12px rgba(0,0,0,.28)';
     bub.style.animationDelay = (-i * 0.5) + 's';
     bub.innerHTML = '<span class="shine"></span><span class="blab">' + e.bubble + '</span>';
     bub.onclick = function(){ openEv(i); };
-
-    var cap = document.createElement('div');
-    cap.className = 'cap';
-    cap.innerHTML = '<div class="cap-yr">' + e.year + '</div><div class="cap-ti">' + e.title + '</div><div class="cap-hint">tap to open &rarr;</div>';
-
-    row.appendChild(bub);
-    row.appendChild(cap);
-    tl.appendChild(row);
+    var yr = document.createElement('div'); yr.className = 'myr'; yr.textContent = e.year;
+    node.appendChild(bub); node.appendChild(yr);
+    tl.appendChild(node);
+    nodes.push({ node:node, bub:bub, e:e });
   });
 
-  // draw the meandering dashed line through the marble centers
-  function drawPath(){
-    var bubbles = tl.querySelectorAll('.bubble');
-    if(!bubbles.length) return;
-    var w = tl.clientWidth, h = tl.clientHeight;
+  // place the marbles around a circle and connect them in star order
+  function layout(){
+    var S = tl.clientWidth; if(!S) return;
+    var cx = S/2, cy = S/2, R = S*0.38;
+    var size = S<420 ? 46 : (S<560 ? 60 : 80);
     var pts = [];
-    bubbles.forEach(function(b){
-      var br = b.getBoundingClientRect(), tr = tl.getBoundingClientRect();
-      pts.push({ x: br.left - tr.left + br.width/2, y: br.top - tr.top + br.height/2 });
+    nodes.forEach(function(o, i){
+      var ang = -Math.PI/2 + i * 2*Math.PI / N;
+      var x = cx + R*Math.cos(ang), y = cy + R*Math.sin(ang);
+      o.node.style.left = x + 'px'; o.node.style.top = y + 'px';
+      o.node.style.width = size + 'px'; o.node.style.height = size + 'px';
+      o.bub.style.fontSize = (o.e.bubble.length > 3 ? size*0.17 : size*0.4) + 'px';
+      pts.push({ x:x, y:y });
     });
-    var d = 'M' + pts[0].x + ',' + pts[0].y;
-    for(var i=1;i<pts.length;i++){
-      var xc = (pts[i-1].x + pts[i].x)/2, yc = (pts[i-1].y + pts[i].y)/2;
-      d += ' Q' + pts[i-1].x + ',' + pts[i-1].y + ' ' + xc + ',' + yc;
-    }
-    d += ' L' + pts[pts.length-1].x + ',' + pts[pts.length-1].y;
-    svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
-    svg.innerHTML = '<path d="' + d + '" fill="none" stroke="#c9b8e8" stroke-width="3" stroke-linecap="round" stroke-dasharray="2 12" opacity="0.9"/>';
+    var step = starStep(N), idx = 0, d = 'M' + pts[0].x + ',' + pts[0].y;
+    for(var k=1;k<N;k++){ idx = (idx + step) % N; d += ' L' + pts[idx].x + ',' + pts[idx].y; }
+    d += ' Z';
+    svg.setAttribute('viewBox', '0 0 ' + S + ' ' + S);
+    svg.innerHTML = '<path d="' + d + '" fill="none" stroke="#c9b8e8" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="2 11" opacity="0.92"/>';
   }
-  setTimeout(drawPath, 60);
-  window.addEventListener('resize', drawPath);
-  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(drawPath); }
+  setTimeout(layout, 60);
+  window.addEventListener('resize', layout);
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(layout); }
 
   // modal
   var modal = document.getElementById('evmodal');
