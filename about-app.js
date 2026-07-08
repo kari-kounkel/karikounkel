@@ -74,10 +74,9 @@
   .close-statement .cs-punch{font-family:Georgia,"Times New Roman",serif;font-weight:700;font-style:italic;font-size:clamp(21px,3vw,27px);margin-top:14px;line-height:1.35;}
   .cs-super{font-family:"Caveat",cursive;font-weight:700;font-size:23px;margin-top:10px;color:#fff;opacity:.96;}
   .cs-hint{font-family:"Caveat",cursive;font-weight:700;font-size:20px;margin-top:16px;color:#fff;opacity:.9;}
-  .keeper-reveal{max-width:380px;margin:6px auto 4px;text-align:center;opacity:0;transform:translateY(26px) scale(.95);
-    max-height:0;overflow:hidden;pointer-events:none;
-    transition:opacity .7s ease, transform .8s cubic-bezier(.34,1.35,.5,1), max-height .8s ease, margin .6s ease;}
-  .keeper-reveal.show{opacity:1;transform:none;max-height:720px;margin:26px auto 4px;pointer-events:auto;}
+  .keeper-reveal{max-width:380px;margin:6px auto 4px;text-align:center;max-height:0;overflow:hidden;pointer-events:none;
+    transition:max-height .8s ease, margin .6s ease;}
+  .keeper-reveal.show{max-height:760px;margin:26px auto 4px;pointer-events:auto;}
   .keeper-img{width:100%;max-width:340px;height:auto;display:block;margin:0 auto;mix-blend-mode:multiply;}
   .keeper-cap{margin-top:2px;}
   .kc-name{display:block;font-family:Georgia,"Times New Roman",serif;font-weight:700;font-size:25px;
@@ -151,31 +150,31 @@
   // ============================================================
   var EVENTS = [
     { year:"Born, 1969", bubble:"born", title:"Getting There With Care", color:"#E5006E",
-      detail:"I was born into a family business where transportation wasn't just a job — it was dinner-table conversation.\n\nI learned early that every problem has a solution, if you're willing to keep looking." },
+      detail:"I was born into a family business where transportation wasn't just a job — it was dinner-table conversation. I thought we bled yellow.\n\nI learned early that every problem has a solution, if you're willing to keep looking." },
     { year:"Age 21", bubble:"21", title:"“I don't know… but I'll find out.”", color:"#8B3DFF",
-      detail:"I started at Dad's full-time at 21 — with my baby on my hip and no desire to go to law school. Dad let me bring my baby to work.\n\nI answered phones knowing almost nothing about school transportation. So my favorite phrase became, “I don't know… but I'll find out.”\n\nThat curiosity turned into everything." },
-    { year:"More than the buses", bubble:"serve", title:"The Community Years", color:"#00B4D8",
+      detail:"I'd worked part-time at Hoglund's since I was 12, and became full-time at 21 — with my baby on my hip and no desire to go to law school. Dad let me bring my baby to work.\n\nI answered phones knowing almost nothing about school transportation. So my favorite phrase became, “I don't know… but I'll find out.”\n\nThat curiosity turned into everything." },
+    { year:"More than the buses", bubble:"service", title:"The Community Years", color:"#00B4D8",
       detail:"I was never just the bus company.\n\nI played piano and served at church. I was a Rotarian and a member of the Chamber of Commerce. I was the key person in my community for foreign exchange students.\n\nShowing up for people was always the throughline." },
     { year:"The expert", bubble:"expert", title:"“I'll find out” became knowing", color:"#F4B400",
-      detail:"What started as curiosity became expertise — teaching districts, solving compliance problems, becoming the person people called when they were stuck.\n\nIn 1996, after sitting on the panel that wrote the new laws, I wrote my first book: How to Hire and Train a School Bus Driver." },
+      detail:"What started as curiosity became expertise — teaching districts, solving compliance problems, becoming the person people called when they were stuck.\n\nIn 1996, after sitting on the panel that wrote the new laws, I wrote my first manual: How to Hire and Train a School Bus Driver." },
     { year:"National recognition", bubble:"awards", title:"Excellence Is a Choice", color:"#FF8C42",
-      detail:"My newsletter — 100% mine — won national awards four years in a row.\n\nMy philosophy became simple:\n\nCompliance is an obligation. Excellence is a choice." },
+      detail:"My newsletter — 100% mine — won national awards four years in a row.\n\nThe entire newsletter grew from one philosophy:\n\nCompliance is an obligation. Excellence is a choice." },
     { year:"April 10, 1997", bubble:"1997", title:"Everything Changed", color:"#2F4B7C",
-      detail:"A dump truck blew a stop sign and hit our bus, killing three nine-year-old children.\n\nIt was national news. The NTSB arrived on our doorstep.\n\nParadigm-shifting, in the deepest sense of the word. Nothing was ever the same." },
+      detail:"A dump truck blew a stop sign and hit our bus, killing three nine-year-old children.\n\nIt was national news. The NTSB arrived on our doorstep.\n\nParadigm-shifting, in the deepest sense of the word. Nothing was ever the same.\n\nWhen I tell this story, rooms full of busy professionals go still — no one moves until it's over." },
     { year:"35 years", bubble:"fixer", title:"The Fixer", color:"#7B2FF7",
       detail:"For decades, Dad sent me across Minnesota — negotiating contracts, teaching transportation management, improving operations, and finding profit where others couldn't.\n\nCadillac service at Pinto pricing. That was the standard." },
     { year:"1999–2011", bubble:"battle", title:"The Long Battle", color:"#C8369A",
-      detail:"For twelve years we fought a bitter fight for our bus contract — against First Student and a consultant who desperately wanted them to have it.\n\nTwelve years. I didn't back down." },
+      detail:"For twelve years we fought an intense fight for our bus contract — against First Student and a consultant who desperately wanted them to have it.\n\nTwelve years of proving — again and again, to the community, the district, and ourselves — that we deserved the job." },
     { year:"The math story", bubble:"math", title:"“There's only one right number.”", color:"#EF476F",
-      detail:"That same consultant publicly dismissed my bid calculations and slid them back across the table.\n\nI slid them right back.\n\n“With all due respect, Mr. Watson… the beauty of math is there's only one right number.”\n\nWe won the contract.\n\nThey never hired him again." },
+      detail:"That same consultant publicly dismissed my bid calculations and slid them back across the table.\n\nI slid them right back.\n\n“With all due respect, Mr. Watson… the beauty of math is there's only one right number.”\n\nWe won the contract.\n\nIt wasn't relationships or personalities that won it, either — it was clear systems, clean spreadsheets, and understanding our business.\n\nThey never hired him again." },
     { year:"The hard lesson", bubble:"lesson", title:"You can't save a business that doesn't want saving", color:"#5A6ACF",
-      detail:"I could see better systems. Better purchasing. Better margins. Better long-term decisions.\n\nBut sometimes being right isn't enough — if leadership won't listen.\n\nEventually, I walked away." },
+      detail:"I could see better systems. Better purchasing. Better margins. Better long-term decisions.\n\nBut sometimes being right isn't enough — if leadership won't listen.\n\nEventually, I had to leave." },
     { year:"Rock bottom", bubble:"reset", title:"Starting Over", color:"#6A3D7A",
-      detail:"Marriage ended.\nCareer ended.\nAddiction followed.\n\nEverything I'd built disappeared." },
+      detail:"I left everything: marriage, career, community, church.\n\nMy respite became addiction.\n\nEverything I'd built disappeared." },
     { year:"Recovery", bubble:"rise", title:"Learning to Live Again", color:"#06D6A0",
-      detail:"I spent four years rebuilding from nothing — and I mean nothing.\n\nMy first job out of Teen Challenge was collecting urine specimens for controlled-substance testing.\n\nRecovery didn't just give me my life back. It taught me how to rebuild, one piece at a time — and I rebuilt my business along the way." },
+      detail:"After seven years of trying, it took four more years to rebuild from nothing — and I mean nothing.\n\nMy first job out of Teen Challenge was collecting urine specimens for controlled-substance testing.\n\nRecovery didn't just give me my life back. It taught me how to rebuild, one piece at a time — and I rebuilt my business along the way." },
     { year:"Today", bubble:"now", title:"The Keeper", color:"#FF4D8D",
-      detail:"Now I help people find the thing they can't see.\n\nSometimes it's their books. Sometimes it's AI. Sometimes it's who they are — or the way forward their business has been missing.\n\nProblem-solving. Compassion. Patience. And, every time, a way through.\n\nI still love solving puzzles. Only now they're people and businesses." },
+      detail:"Now I delight in helping others find the thing they can't see.\n\nSometimes it's their books. Sometimes it's AI. Sometimes it's the way forward they've been missing.\n\nProblem-solving. System-building. Seeing what everyone else missed. And, every time, a way through.\n\nI love solving puzzles." },
     { year:"What's next?", bubble:"next?", title:"The best chapters aren't written yet", color:"#FFB703",
       detail:"Books. AI. Systems. Founders who feel stuck.\n\nEvery chapter taught me something the next chapter needed — and I wouldn't erase a single one.\n\nSome people think my life went south. I think it went everywhere.\n\nMore chickens, marbles, and sanctified shenanigans ahead." }
   ];
@@ -191,8 +190,7 @@
     bub.style.animationDelay = (-i * 0.5) + "s";
     bub.innerHTML = "<span class='shine'></span><span class='blab'>" + e.bubble + "</span>";
     bub.onclick = function(){ openEv(i); };
-    var yr = document.createElement("div"); yr.className = "myr"; yr.textContent = e.year;
-    node.appendChild(bub); node.appendChild(yr);
+    node.appendChild(bub);
     tl.appendChild(node);
     nodes.push({ node:node, bub:bub, e:e });
   });
