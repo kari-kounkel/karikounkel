@@ -68,6 +68,9 @@
   .skip{position:fixed;top:16px;right:16px;z-index:300;font-family:"Caveat",cursive;font-weight:700;font-size:20px;
     background:#fff;color:#3a2f50;border:none;border-radius:30px;padding:7px 18px;cursor:pointer;box-shadow:0 6px 18px -6px rgba(70,40,110,.4);}
   .skip:hover{transform:translateY(-1px);}
+  .mystory{position:fixed;top:16px;left:16px;z-index:300;font-family:"Caveat",cursive;font-weight:700;font-size:20px;text-decoration:none;
+    background:linear-gradient(100deg,#E5006E,#8B3DFF);color:#fff;border-radius:30px;padding:7px 18px;cursor:pointer;box-shadow:0 6px 18px -6px rgba(70,40,110,.5);}
+  .mystory:hover{transform:translateY(-1px);}
   .listview{position:fixed;inset:0;z-index:400;background:rgba(245,239,249,.97);display:none;overflow-y:auto;padding:42px 22px 60px;}
   .listview.open{display:block;}
   .lvinner{max-width:560px;margin:0 auto;}
@@ -88,6 +91,7 @@
   // --- markup ---
   document.body.insertAdjacentHTML("afterbegin", `
 <button class="skip" id="skip">skip the game &rarr;</button>
+<a class="mystory" href="/about">&#10024; my story</a>
 <div class="listview" id="listview"><div class="lvinner">
   <button class="lvback" id="lvback">&larr; back to the marbles</button>
   <div class="lvtitle">Everything, in a list.</div>
