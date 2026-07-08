@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>About Kari — the scattered story</title>
+<meta name="description" content="The story of Kari Kounkel, told in marbles. Click one to hear it." />
+<meta name="robots" content="noindex" />
+<!-- Google Analytics (GA4) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-WHKMKCD1SD"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-WHKMKCD1SD');</script>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  :root{--ink:#3a2f50;--muted:#8a82a0;--pink:#E5006E;--purple:#8B3DFF;}
+  body{font-family:"Nunito Sans",system-ui,sans-serif;color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased;
+    background:radial-gradient(ellipse at 50% 0%, #fff 0%, #f5eff9 55%, #ece3f3 100%);min-height:100vh;overflow-x:hidden;}
+  .wrap{max-width:900px;margin:0 auto;padding:0 22px;}
+
+  header{text-align:center;padding:52px 22px 8px;}
+  .eyebrow{font-family:"Caveat",cursive;font-weight:700;font-size:30px;color:var(--pink);transform:rotate(-2deg);}
+  .logo{font-family:Georgia,"Times New Roman",serif;font-weight:700;font-size:clamp(40px,8vw,78px);line-height:1;letter-spacing:-.01em;
+    background:linear-gradient(100deg,#E5006E,#8B3DFF);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .logo em{font-style:italic;font-weight:400;}
+  .sub{font-family:"Caveat",cursive;font-weight:700;font-size:24px;color:var(--purple);margin-top:8px;}
+
+  /* TIMELINE */
+  .tl{position:relative;max-width:840px;margin:34px auto 0;padding:10px 0 70px;}
+  .tl-path{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:visible;}
+  .ev{position:relative;z-index:1;display:flex;align-items:center;gap:18px;margin:0 0 54px;}
+  .ev.right{flex-direction:row-reverse;text-align:right;}
+  .bubble{flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;
+    font-family:Georgia,"Times New Roman",serif;font-weight:400;text-align:center;line-height:1.1;cursor:pointer;border:none;padding:0;position:relative;
+    text-shadow:0 1px 3px rgba(0,0,0,.35);animation:bob 6s ease-in-out infinite;transition:transform .2s, box-shadow .25s;
+    -webkit-user-select:none;user-select:none;}
+  .bubble:hover{transform:scale(1.08);}
+  .bubble:active{transform:scale(.97);}
+  .bubble .shine{position:absolute;top:18%;left:22%;width:30%;height:24%;border-radius:50%;background:rgba(255,255,255,.8);filter:blur(2px);pointer-events:none;}
+  .bubble .blab{padding:0 8px;pointer-events:none;}
+  @keyframes bob{0%,100%{margin-top:0;}50%{margin-top:-9px;}}
+  .cap{max-width:270px;}
+  .cap-yr{font-family:"Caveat",cursive;font-weight:700;font-size:22px;color:var(--pink);line-height:1;}
+  .cap-ti{font-family:Georgia,"Times New Roman",serif;font-weight:700;font-size:19px;color:var(--ink);margin-top:2px;line-height:1.2;}
+  .cap-hint{font-size:12px;color:var(--muted);margin-top:4px;font-weight:600;}
+
+  /* MODAL */
+  .ev-modal{position:fixed;inset:0;z-index:500;background:rgba(58,47,80,.5);backdrop-filter:blur(6px);
+    display:none;align-items:center;justify-content:center;padding:22px;}
+  .ev-modal.open{display:flex;}
+  .ev-card{background:#fff;border-radius:28px;max-width:520px;width:100%;padding:38px 34px 34px;text-align:center;position:relative;
+    box-shadow:0 30px 80px -20px rgba(58,47,80,.5);animation:pop .3s cubic-bezier(.34,1.4,.5,1);}
+  @keyframes pop{from{opacity:0;transform:scale(.92);}to{opacity:1;transform:scale(1);}}
+  .ev-x{position:absolute;top:16px;right:18px;background:none;border:none;font-size:26px;color:var(--muted);cursor:pointer;line-height:1;}
+  .ev-big{width:120px;height:120px;border-radius:50%;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;
+    color:#fff;font-family:Georgia,serif;font-size:30px;position:relative;text-shadow:0 1px 3px rgba(0,0,0,.35);}
+  .ev-big .shine{position:absolute;top:18%;left:22%;width:30%;height:24%;border-radius:50%;background:rgba(255,255,255,.8);filter:blur(2px);}
+  .ev-yr{font-family:"Caveat",cursive;font-weight:700;font-size:26px;color:var(--pink);line-height:1;}
+  .ev-ti{font-family:Georgia,"Times New Roman",serif;font-weight:700;font-size:27px;color:var(--ink);margin:2px 0 14px;}
+  .ev-detail{font-size:16px;color:#4a3d63;line-height:1.65;}
+
+  footer{text-align:center;padding:24px 22px 60px;color:var(--muted);font-size:13px;}
+  footer .wink{font-family:"Caveat",cursive;font-weight:700;font-size:22px;color:var(--pink);display:block;margin-top:6px;}
+  footer a{color:var(--purple);text-decoration:none;font-weight:700;}
+
+  @media(max-width:560px){
+    .cap{max-width:150px;}
+    .cap-ti{font-size:16px;}
+    .ev{gap:12px;margin-bottom:42px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">the scattered story&hellip;</div>
+    <div class="logo">About <em>Kari</em></div>
+    <div class="sub">click a marble to hear that part &middot; not linear, on purpose</div>
+  </header>
+
+  <div class="tl" id="tl">
+    <svg class="tl-path" id="tlpath" preserveAspectRatio="none"></svg>
+  </div>
+
+  <footer>
+    &copy; 2026 &middot; Kari Kounkel &middot; K Co LLC
+    <span class="wink">more chickens, marbles, and sanctified shenanigans ahead.</span>
+    <div style="margin-top:10px;"><a href="https://karikounkel.com">&larr; back to the marbles</a></div>
+  </footer>
+</div>
+
+<div class="ev-modal" id="evmodal">
+  <div class="ev-card">
+    <button class="ev-x" id="evx" aria-label="close">&times;</button>
+    <div class="ev-big" id="evbig"><span class="shine"></span><span id="evbiglab"></span></div>
+    <div class="ev-yr" id="evyr"></div>
+    <div class="ev-ti" id="evti"></div>
+    <div class="ev-detail" id="evdetail"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   EDIT ME — this is your story. Swap the year / bubble / title /
+   detail freely, add or remove marbles, change colors. That's it.
+   ------------------------------------------------------------
+   year   = the little script line (a real year OR a chapter name)
+   bubble = what shows ON the marble (1 short word or an emoji)
+   title  = the headline in the popup
+   detail = the story (as long as you like)
+   color  = the marble color (hex)
+   ============================================================ */
+var EVENTS = [
+  { year:"once upon a time", bubble:"start",  title:"Where it began",        color:"#E5006E",
+    detail:"[Your beginning — where you're from, the family that made you, the very first spark. Rewrite this one with your real story.]" },
+  { year:"the hard years",   bubble:"lost",   title:"I lost my marbles",     color:"#8B3DFF",
+    detail:"There was a season it all scattered — the losses, the plot twists, the parts nobody claps for. It genuinely felt like losing my marbles." },
+  { year:"the turn",         bubble:"found",  title:"They were never lost",  color:"#F4B400",
+    detail:"Turns out they were never lost — just scattered. Gathering them back, one at a time, quietly became the whole point of everything after." },
+  { year:"the work",         bubble:"CARES",  title:"CARES Consulting",      color:"#00B4D8",
+    detail:"[The business you built to help others get their books — and their sanity — in order. Edit with the real when and why.]" },
+  { year:"the brand",        bubble:"K Co",   title:"K Co & Keepstead",      color:"#EF476F",
+    detail:"My own shelf of good things — tools, workbooks, marbles, and a little mischief, all gathered under one name." },
+  { year:"the press",        bubble:"books",  title:"Fast Camel Press",      color:"#7B2FF7",
+    detail:"Because the stories kept coming and wouldn't be quiet. A little press for books worth keeping." },
+  { year:"a small classic",  bubble:"🐞",     title:"Ladybug, Ladybug",      color:"#FF8C42",
+    detail:"Keeping it classy in a buggy world — thirteen chapters, thirteen hearts, one very determined little bug." },
+  { year:"2026",             bubble:"🐔",     title:"Chasing Chickens",      color:"#C8369A",
+    detail:"The memoir. The flagship. Everything that scattered, gathered into one story. Launching October 2026." },
+  { year:"what's next",      bubble:"soon",   title:"The road ahead",        color:"#06D6A0",
+    detail:"More chickens, marbles, and sanctified shenanigans. The best chapters aren't written yet — that's kind of the fun." }
+];
+
+/* horizontal scatter (% of row) — makes it wander instead of marching in a line */
+var OFFSETS = [-6, 16, -20, 24, -8, 20, -16, 10, -22, 6, -12, 18];
+
+(function(){
+  var tl = document.getElementById('tl');
+  var svg = document.getElementById('tlpath');
+  var isMobile = window.innerWidth < 560;
+
+  EVENTS.forEach(function(e, i){
+    var side = (i % 2 === 0) ? 'left' : 'right';
+    var row = document.createElement('div');
+    row.className = 'ev ' + side;
+    var off = OFFSETS[i % OFFSETS.length] * (isMobile ? 0.35 : 1);
+    row.style.transform = 'translateX(' + off + '%)';
+
+    var size = (isMobile ? 78 : 96) + (i % 3) * (isMobile ? 8 : 18);
+    var bub = document.createElement('button');
+    bub.className = 'bubble';
+    bub.style.width = size + 'px';
+    bub.style.height = size + 'px';
+    bub.style.fontSize = (e.bubble.length > 3 ? (isMobile?12:14) : (isMobile?22:30)) + 'px';
+    bub.style.background = 'radial-gradient(circle at 35% 30%, ' + e.color + '66, ' + e.color + 'DD 60%, ' + e.color + ' 100%)';
+    bub.style.boxShadow = '0 0 22px ' + e.color + 'AA, 0 0 9px ' + e.color + ', inset 0 -6px 12px rgba(0,0,0,.28)';
+    bub.style.animationDelay = (-i * 0.5) + 's';
+    bub.innerHTML = '<span class="shine"></span><span class="blab">' + e.bubble + '</span>';
+    bub.onclick = function(){ openEv(i); };
+
+    var cap = document.createElement('div');
+    cap.className = 'cap';
+    cap.innerHTML = '<div class="cap-yr">' + e.year + '</div><div class="cap-ti">' + e.title + '</div><div class="cap-hint">tap to open &rarr;</div>';
+
+    row.appendChild(bub);
+    row.appendChild(cap);
+    tl.appendChild(row);
+  });
+
+  // draw the meandering dashed line through the marble centers
+  function drawPath(){
+    var bubbles = tl.querySelectorAll('.bubble');
+    if(!bubbles.length) return;
+    var w = tl.clientWidth, h = tl.clientHeight;
+    var pts = [];
+    bubbles.forEach(function(b){
+      var br = b.getBoundingClientRect(), tr = tl.getBoundingClientRect();
+      pts.push({ x: br.left - tr.left + br.width/2, y: br.top - tr.top + br.height/2 });
+    });
+    var d = 'M' + pts[0].x + ',' + pts[0].y;
+    for(var i=1;i<pts.length;i++){
+      var xc = (pts[i-1].x + pts[i].x)/2, yc = (pts[i-1].y + pts[i].y)/2;
+      d += ' Q' + pts[i-1].x + ',' + pts[i-1].y + ' ' + xc + ',' + yc;
+    }
+    d += ' L' + pts[pts.length-1].x + ',' + pts[pts.length-1].y;
+    svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+    svg.innerHTML = '<path d="' + d + '" fill="none" stroke="#c9b8e8" stroke-width="3" stroke-linecap="round" stroke-dasharray="2 12" opacity="0.9"/>';
+  }
+  setTimeout(drawPath, 60);
+  window.addEventListener('resize', drawPath);
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(drawPath); }
+
+  // modal
+  var modal = document.getElementById('evmodal');
+  function openEv(i){
+    var e = EVENTS[i];
+    var big = document.getElementById('evbig');
+    big.style.background = 'radial-gradient(circle at 35% 30%, ' + e.color + '66, ' + e.color + 'DD 60%, ' + e.color + ' 100%)';
+    big.style.boxShadow = '0 0 30px ' + e.color + 'AA, inset 0 -8px 16px rgba(0,0,0,.28)';
+    document.getElementById('evbiglab').textContent = e.bubble;
+    document.getElementById('evbiglab').style.fontSize = (e.bubble.length > 3 ? 16 : 34) + 'px';
+    document.getElementById('evyr').textContent = e.year;
+    document.getElementById('evti').textContent = e.title;
+    document.getElementById('evdetail').textContent = e.detail;
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  window.openEv = openEv;
+  function closeEv(){ modal.classList.remove('open'); document.body.style.overflow = ''; }
+  document.getElementById('evx').onclick = closeEv;
+  modal.addEventListener('click', function(ev){ if(ev.target === modal) closeEv(); });
+  document.addEventListener('keydown', function(ev){ if(ev.key === 'Escape') closeEv(); });
+})();
+</script>
+<script src="https://chat.karikounkel.com/widget.js" defer></script>
+</body>
+</html>
