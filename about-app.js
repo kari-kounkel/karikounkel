@@ -170,7 +170,7 @@
     { year:"The hard lesson", bubble:"lesson", title:"You can't save a business that doesn't want saving", color:"#5A6ACF",
       detail:"I could see better systems. Better purchasing. Better margins. Better long-term decisions.\n\nBut sometimes being right isn't enough — if leadership won't listen.\n\nEventually, I had to leave." },
     { year:"Rock bottom", bubble:"reset", title:"Starting Over", color:"#6A3D7A",
-      detail:"I left everything: marriage, career, community, church.\n\nMy respite became addiction.\n\nEverything I'd built disappeared." },
+      detail:"I left everything: marriage, career, community, church.\n\nWhat started as my respite became addiction.\n\nEverything I'd built disappeared." },
     { year:"Recovery", bubble:"rise", title:"Learning to Live Again", color:"#06D6A0",
       detail:"After seven years of trying, it took four more years to rebuild from nothing — and I mean nothing.\n\nMy first job out of Teen Challenge was collecting urine specimens for controlled-substance testing.\n\nRecovery didn't just give me my life back. It taught me how to rebuild, one piece at a time — and I rebuilt my business along the way." },
     { year:"Today", bubble:"now", title:"The Keeper", color:"#FF4D8D",
