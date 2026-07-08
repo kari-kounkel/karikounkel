@@ -38,6 +38,9 @@
   .mnode .bubble{width:100%;height:100%;}
   .myr{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:5px;font-family:"Caveat",cursive;
     font-weight:700;font-size:15px;color:var(--pink);white-space:nowrap;line-height:1;pointer-events:none;text-shadow:0 1px 4px #fff,0 0 3px #fff;}
+  .mbadge{position:absolute;top:-3px;right:-3px;min-width:19px;height:19px;padding:0 3px;border-radius:50%;background:#fff;
+    color:var(--purple);font-family:"Nunito Sans",sans-serif;font-weight:800;font-size:11px;line-height:19px;text-align:center;
+    box-shadow:0 2px 6px rgba(70,40,110,.35);z-index:4;pointer-events:none;}
 
   .bubble{flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;
     font-family:Georgia,"Times New Roman",serif;font-weight:400;text-align:center;line-height:1.1;cursor:pointer;border:none;padding:0;position:relative;
@@ -148,8 +151,8 @@
    Use \n inside detail for a line break (the poetic cadence).
    ============================================================ */
 var EVENTS = [
-  { year:"1947", bubble:"🚌", title:"Getting There With Care", color:"#E5006E",
-    detail:"I grew up in a family business where transportation wasn't just a job — it was dinner-table conversation.\n\nI learned early that every problem has a solution, if you're willing to keep looking." },
+  { year:"Born, 1969", bubble:"🚌", title:"Getting There With Care", color:"#E5006E",
+    detail:"I was born into a family business where transportation wasn't just a job — it was dinner-table conversation.\n\nI learned early that every problem has a solution, if you're willing to keep looking." },
 
   { year:"Age 21", bubble:"21", title:"“I don't know… but I'll find out.”", color:"#8B3DFF",
     detail:"I started at Dad's full-time at 21 — with my baby on my hip and no desire to go to law school. Dad let me bring my baby to work.\n\nI answered phones knowing almost nothing about school transportation. So my favorite phrase became, “I don't know… but I'll find out.”\n\nThat curiosity turned into everything." },
@@ -205,7 +208,8 @@ var EVENTS = [
     bub.innerHTML = '<span class="shine"></span><span class="blab">' + e.bubble + '</span>';
     bub.onclick = function(){ openEv(i); };
     var yr = document.createElement('div'); yr.className = 'myr'; yr.textContent = e.year;
-    node.appendChild(bub); node.appendChild(yr);
+    var badge = document.createElement('div'); badge.className = 'mbadge'; badge.textContent = (i+1);
+    node.appendChild(bub); node.appendChild(yr); node.appendChild(badge);
     tl.appendChild(node);
     nodes.push({ node:node, bub:bub, e:e });
   });
