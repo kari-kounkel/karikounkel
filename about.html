@@ -32,7 +32,7 @@
   .pq-small{font-size:15px;color:#4a3d63;margin-top:12px;line-height:1.55;max-width:520px;margin-left:auto;margin-right:auto;}
 
   /* TIMELINE */
-  .tl{position:relative;max-width:840px;margin:20px auto 0;padding:10px 0 60px;}
+  .tl{position:relative;max-width:840px;margin:20px auto 0;padding:10px 0 40px;}
   .tl-path{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:visible;}
   .ev{position:relative;z-index:1;display:flex;align-items:center;gap:18px;margin:0 0 50px;}
   .ev.right{flex-direction:row-reverse;text-align:right;}
@@ -50,6 +50,15 @@
   .cap-ti{font-family:Georgia,"Times New Roman",serif;font-weight:700;font-size:19px;color:var(--ink);margin-top:2px;line-height:1.2;}
   .cap-hint{font-size:12px;color:var(--muted);margin-top:4px;font-weight:600;}
 
+  /* THE KEEPER — the payoff */
+  .keeper-card{max-width:360px;margin:8px auto 4px;background:#fff;border-radius:26px;padding:16px 16px 20px;text-align:center;
+    box-shadow:0 24px 58px -22px rgba(70,40,110,.55);}
+  .keeper-img{width:100%;max-width:322px;height:auto;display:block;margin:0 auto;}
+  .keeper-cap{margin-top:8px;}
+  .kc-name{display:block;font-family:Georgia,"Times New Roman",serif;font-weight:700;font-size:25px;
+    background:linear-gradient(100deg,#E5006E,#8B3DFF);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .kc-sub{display:block;font-family:"Caveat",cursive;font-weight:700;font-size:19px;color:var(--muted);margin-top:2px;}
+
   /* MODAL */
   .ev-modal{position:fixed;inset:0;z-index:500;background:rgba(58,47,80,.5);backdrop-filter:blur(6px);
     display:none;align-items:center;justify-content:center;padding:22px;}
@@ -66,7 +75,7 @@
   .ev-detail{font-size:16.5px;color:#4a3d63;line-height:1.7;white-space:pre-line;text-align:left;}
 
   /* FOOTER STATEMENT */
-  .close-statement{max-width:600px;margin:20px auto 0;text-align:center;padding:34px 24px;
+  .close-statement{max-width:600px;margin:24px auto 0;text-align:center;padding:34px 24px;
     background:linear-gradient(120deg,#E5006E,#8B3DFF);border-radius:26px;color:#fff;box-shadow:0 18px 44px -18px rgba(139,61,255,.6);}
   .close-statement .cs-lines{font-family:Georgia,"Times New Roman",serif;font-size:19px;line-height:1.7;opacity:.92;}
   .close-statement .cs-punch{font-family:Georgia,"Times New Roman",serif;font-weight:700;font-style:italic;font-size:clamp(21px,3vw,27px);margin-top:14px;line-height:1.35;}
@@ -97,6 +106,15 @@
 
   <div class="tl" id="tl">
     <svg class="tl-path" id="tlpath" preserveAspectRatio="none"></svg>
+  </div>
+
+  <div class="keeper-card">
+    <img class="keeper-img" src="keeper.png" alt="Kari as The Keeper, holding a jar of gathered marbles and a ring of keys"
+         onerror="this.closest('.keeper-card').style.display='none'">
+    <div class="keeper-cap">
+      <span class="kc-name">The Keeper</span>
+      <span class="kc-sub">every marble, gathered &middot; every chapter, a key</span>
+    </div>
   </div>
 
   <div class="close-statement">
@@ -131,42 +149,48 @@ var EVENTS = [
   { year:"1947", bubble:"🚌", title:"Getting There With Care", color:"#E5006E",
     detail:"I grew up in a family business where transportation wasn't just a job — it was dinner-table conversation.\n\nI learned early that every problem has a solution, if you're willing to keep looking." },
 
-  { year:"Age 18", bubble:"18", title:"“I don't know… but I'll find out.”", color:"#8B3DFF",
-    detail:"I answered phones knowing almost nothing about school transportation.\n\nThat became my greatest strength. Every question became an opportunity to learn." },
+  { year:"Age 21", bubble:"21", title:"“I don't know… but I'll find out.”", color:"#8B3DFF",
+    detail:"I started at Dad's full-time at 21 — with my baby on my hip and no desire to go to law school. Dad let me bring my baby to work.\n\nI answered phones knowing almost nothing about school transportation. So my favorite phrase became, “I don't know… but I'll find out.”\n\nThat curiosity turned into everything." },
 
-  { year:"Six years later", bubble:"expert", title:"The Expert", color:"#00B4D8",
-    detail:"What started with curiosity became expertise.\n\nI was teaching districts, solving compliance problems, and becoming the person people called when they were stuck." },
+  { year:"More than the buses", bubble:"🎹", title:"The Community Years", color:"#00B4D8",
+    detail:"I was never just the bus company.\n\nI played piano and served at church. I was a Rotarian and a member of the Chamber of Commerce. I was the key person in my community for foreign exchange students.\n\nShowing up for people was always the throughline." },
 
-  { year:"National recognition", bubble:"★", title:"Excellence Is a Choice", color:"#F4B400",
-    detail:"Our newsletter won national awards four years in a row.\n\nMy philosophy became simple:\n\nCompliance is an obligation. Excellence is a choice." },
+  { year:"The expert", bubble:"expert", title:"“I'll find out” became knowing", color:"#F4B400",
+    detail:"What started as curiosity became expertise — teaching districts, solving compliance problems, becoming the person people called when they were stuck.\n\nIn 1996, after sitting on the panel that wrote the new laws, I wrote my first book: How to Hire and Train a School Bus Driver." },
 
-  { year:"The bus crash", bubble:"turn", title:"Everything Changed", color:"#FF8C42",
-    detail:"A devastating crash left me unable to speak for a time.\n\nBut I could still solve problems." },
+  { year:"National recognition", bubble:"★", title:"Excellence Is a Choice", color:"#FF8C42",
+    detail:"My newsletter — 100% mine — won national awards four years in a row.\n\nMy philosophy became simple:\n\nCompliance is an obligation. Excellence is a choice." },
+
+  { year:"April 10, 1997", bubble:"1997", title:"Everything Changed", color:"#2F4B7C",
+    detail:"A dump truck blew a stop sign and hit our bus, killing three nine-year-old children.\n\nIt was national news. The NTSB arrived on our doorstep.\n\nParadigm-shifting, in the deepest sense of the word. Nothing was ever the same." },
 
   { year:"35 years", bubble:"fixer", title:"The Fixer", color:"#7B2FF7",
-    detail:"My dad sent me across Minnesota — negotiating contracts, teaching transportation management, improving operations, and finding profit where others couldn't." },
+    detail:"For decades, Dad sent me across Minnesota — negotiating contracts, teaching transportation management, improving operations, and finding profit where others couldn't.\n\nCadillac service at Pinto pricing. That was the standard." },
+
+  { year:"1999–2011", bubble:"battle", title:"The Long Battle", color:"#C8369A",
+    detail:"For twelve years we fought a bitter fight for our bus contract — against First Student and a consultant who desperately wanted them to have it.\n\nTwelve years. I didn't back down." },
 
   { year:"The math story", bubble:"❤️", title:"“There's only one right number.”", color:"#EF476F",
-    detail:"A consultant publicly dismissed my bid calculations.\n\nI slid them back.\n\n“With all due respect, Mr. Watson… the beauty of math is there's only one right number.”\n\nWe won the contract.\n\nThey never hired him again." },
+    detail:"That same consultant publicly dismissed my bid calculations and slid them back across the table.\n\nI slid them right back.\n\n“With all due respect, Mr. Watson… the beauty of math is there's only one right number.”\n\nWe won the contract.\n\nThey never hired him again." },
 
-  { year:"The hard lesson", bubble:"lesson", title:"You can't save a business that doesn't want saving", color:"#C8369A",
-    detail:"I could see better systems. Better purchasing. Better margins. Better long-term decisions.\n\nSometimes being right isn't enough — if leadership won't listen.\n\nEventually, I walked away." },
+  { year:"The hard lesson", bubble:"lesson", title:"You can't save a business that doesn't want saving", color:"#5A6ACF",
+    detail:"I could see better systems. Better purchasing. Better margins. Better long-term decisions.\n\nBut sometimes being right isn't enough — if leadership won't listen.\n\nEventually, I walked away." },
 
-  { year:"Rock bottom", bubble:"reset", title:"Starting Over", color:"#5A6ACF",
+  { year:"Rock bottom", bubble:"reset", title:"Starting Over", color:"#6A3D7A",
     detail:"Marriage ended.\nCareer ended.\nAddiction followed.\n\nEverything I'd built disappeared." },
 
   { year:"Recovery", bubble:"rise", title:"Learning to Live Again", color:"#06D6A0",
-    detail:"Recovery didn't just give me my life back.\n\nIt taught me how to rebuild — one piece at a time." },
+    detail:"I spent four years rebuilding from nothing — and I mean nothing.\n\nMy first job out of Teen Challenge was collecting urine specimens for controlled-substance testing.\n\nRecovery didn't just give me my life back. It taught me how to rebuild, one piece at a time — and I rebuilt my business along the way." },
 
   { year:"Today", bubble:"now", title:"The Keeper", color:"#FF4D8D",
-    detail:"Now I help founders find the thing they can't see.\n\nSometimes it's accounting. Sometimes it's AI. Sometimes it's one decision that's quietly costing them thousands.\n\nI still love solving puzzles. Only now they're business puzzles." },
+    detail:"Now I help people find the thing they can't see.\n\nSometimes it's their books. Sometimes it's AI. Sometimes it's who they are — or the way forward their business has been missing.\n\nProblem-solving. Compassion. Patience. And, every time, a way through.\n\nI still love solving puzzles. Only now they're people and businesses." },
 
   { year:"What's next?", bubble:"next?", title:"The best chapters aren't written yet", color:"#FFB703",
-    detail:"Books. AI. Systems. Founders who feel stuck.\n\nEvery chapter taught me something the next chapter needed — and I wouldn't erase a single one.\n\nHelping people build stronger businesses isn't just what I do. It's what I've been training for my entire life.\n\nMore chickens, marbles, and sanctified shenanigans ahead." }
+    detail:"Books. AI. Systems. Founders who feel stuck.\n\nEvery chapter taught me something the next chapter needed — and I wouldn't erase a single one.\n\nSome people think my life went south. I think it went everywhere.\n\nMore chickens, marbles, and sanctified shenanigans ahead." }
 ];
 
 /* horizontal scatter (% of row) — makes it wander instead of marching in a line */
-var OFFSETS = [-6, 16, -20, 24, -8, 20, -16, 10, -22, 6, -14, 18];
+var OFFSETS = [-6, 16, -20, 24, -8, 20, -16, 10, -22, 6, -14, 18, -10, 14];
 
 (function(){
   var tl = document.getElementById('tl');
