@@ -31,32 +31,23 @@
     background:linear-gradient(100deg,#E5006E,#8B3DFF);-webkit-background-clip:text;background-clip:text;color:transparent;}
   .pq-small{font-size:15px;color:#4a3d63;margin-top:12px;line-height:1.55;max-width:520px;margin-left:auto;margin-right:auto;}
 
-  /* TIMELINE — arranged as a many-pointed star */
+  /* SPIRAL TIMELINE */
   .tl{position:relative;width:100%;max-width:660px;margin:22px auto 8px;aspect-ratio:1/1;}
   .tl-path{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:visible;}
   .mnode{position:absolute;transform:translate(-50%,-50%);z-index:2;}
   .mnode .bubble{width:100%;height:100%;}
   .myr{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:5px;font-family:"Caveat",cursive;
     font-weight:700;font-size:15px;color:var(--pink);white-space:nowrap;line-height:1;pointer-events:none;text-shadow:0 1px 4px #fff,0 0 3px #fff;}
+
   .bubble{flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;
     font-family:Georgia,"Times New Roman",serif;font-weight:400;text-align:center;line-height:1.1;cursor:pointer;border:none;padding:0;position:relative;
     text-shadow:0 1px 3px rgba(0,0,0,.35);animation:bob 6s ease-in-out infinite;transition:transform .2s, box-shadow .25s;
     -webkit-user-select:none;user-select:none;}
-  .bubble:hover{transform:scale(1.08);}
+  .bubble:hover{transform:scale(1.1);}
   .bubble:active{transform:scale(.97);}
   .bubble .shine{position:absolute;top:18%;left:22%;width:30%;height:24%;border-radius:50%;background:rgba(255,255,255,.8);filter:blur(2px);pointer-events:none;}
-  .bubble .blab{padding:0 8px;pointer-events:none;}
-  @keyframes bob{0%,100%{margin-top:0;}50%{margin-top:-9px;}}
-  .star-hint{text-align:center;font-family:"Caveat",cursive;font-weight:700;font-size:19px;color:var(--muted);margin:-2px auto 2px;}
-
-  /* THE KEEPER — the payoff */
-  .keeper-card{max-width:360px;margin:8px auto 4px;background:#fff;border-radius:26px;padding:16px 16px 20px;text-align:center;
-    box-shadow:0 24px 58px -22px rgba(70,40,110,.55);}
-  .keeper-img{width:100%;max-width:322px;height:auto;display:block;margin:0 auto;}
-  .keeper-cap{margin-top:8px;}
-  .kc-name{display:block;font-family:Georgia,"Times New Roman",serif;font-weight:700;font-size:25px;
-    background:linear-gradient(100deg,#E5006E,#8B3DFF);-webkit-background-clip:text;background-clip:text;color:transparent;}
-  .kc-sub{display:block;font-family:"Caveat",cursive;font-weight:700;font-size:19px;color:var(--muted);margin-top:2px;}
+  .bubble .blab{padding:0 6px;pointer-events:none;}
+  @keyframes bob{0%,100%{margin-top:0;}50%{margin-top:-7px;}}
 
   /* MODAL */
   .ev-modal{position:fixed;inset:0;z-index:500;background:rgba(58,47,80,.5);backdrop-filter:blur(6px);
@@ -73,11 +64,25 @@
   .ev-ti{font-family:Georgia,"Times New Roman",serif;font-weight:700;font-size:25px;color:var(--ink);margin:2px 0 16px;line-height:1.25;}
   .ev-detail{font-size:16.5px;color:#4a3d63;line-height:1.7;white-space:pre-line;text-align:left;}
 
-  /* FOOTER STATEMENT */
-  .close-statement{max-width:600px;margin:24px auto 0;text-align:center;padding:34px 24px;
-    background:linear-gradient(120deg,#E5006E,#8B3DFF);border-radius:26px;color:#fff;box-shadow:0 18px 44px -18px rgba(139,61,255,.6);}
+  /* FOOTER STATEMENT — click to reveal The Keeper */
+  .close-statement{max-width:600px;margin:24px auto 0;text-align:center;padding:34px 24px;cursor:pointer;
+    background:linear-gradient(120deg,#E5006E,#8B3DFF);border-radius:26px;color:#fff;box-shadow:0 18px 44px -18px rgba(139,61,255,.6);
+    transition:transform .2s, box-shadow .2s;}
+  .close-statement:hover{transform:translateY(-2px);box-shadow:0 24px 54px -18px rgba(139,61,255,.7);}
   .close-statement .cs-lines{font-family:Georgia,"Times New Roman",serif;font-size:19px;line-height:1.7;opacity:.92;}
   .close-statement .cs-punch{font-family:Georgia,"Times New Roman",serif;font-weight:700;font-style:italic;font-size:clamp(21px,3vw,27px);margin-top:14px;line-height:1.35;}
+  .cs-hint{font-family:"Caveat",cursive;font-weight:700;font-size:21px;margin-top:16px;color:#fff;opacity:.92;}
+
+  /* THE KEEPER — floats in, no box, when the closing line is clicked */
+  .keeper-reveal{max-width:380px;margin:6px auto 4px;text-align:center;opacity:0;transform:translateY(26px) scale(.95);
+    max-height:0;overflow:hidden;pointer-events:none;
+    transition:opacity .7s ease, transform .8s cubic-bezier(.34,1.35,.5,1), max-height .8s ease, margin .6s ease;}
+  .keeper-reveal.show{opacity:1;transform:none;max-height:720px;margin:26px auto 4px;pointer-events:auto;}
+  .keeper-img{width:100%;max-width:340px;height:auto;display:block;margin:0 auto;mix-blend-mode:multiply;}
+  .keeper-cap{margin-top:2px;}
+  .kc-name{display:block;font-family:Georgia,"Times New Roman",serif;font-weight:700;font-size:25px;
+    background:linear-gradient(100deg,#E5006E,#8B3DFF);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .kc-sub{display:block;font-family:"Caveat",cursive;font-weight:700;font-size:19px;color:var(--muted);margin-top:2px;}
 
   footer{text-align:center;padding:26px 22px 60px;color:var(--muted);font-size:13px;}
   footer .wink{font-family:"Caveat",cursive;font-weight:700;font-size:22px;color:var(--pink);display:block;margin-top:8px;}
@@ -97,25 +102,26 @@
 
   <div class="pq">
     <div class="pq-big">&ldquo;Some people think my life went south.<br>I think it went <em>everywhere</em>.&rdquo;</div>
-    <div class="pq-small">And that&rsquo;s exactly why I can help almost any business owner who walks through my door. Click a marble to hear a chapter.</div>
+    <div class="pq-small">And that&rsquo;s exactly why I can help almost any business owner who walks through my door. Follow the spiral &mdash; click a marble to hear that chapter.</div>
   </div>
 
   <div class="tl" id="tl">
     <svg class="tl-path" id="tlpath" preserveAspectRatio="none"></svg>
   </div>
 
-  <div class="keeper-card">
+  <div class="close-statement" id="closeStmt">
+    <div class="cs-lines">I don&rsquo;t sell bookkeeping.<br>I don&rsquo;t sell AI.<br>I don&rsquo;t sell payroll.</div>
+    <div class="cs-punch">I help businesses see what they&rsquo;ve been missing.</div>
+    <div class="cs-hint" id="csHint">&#128273; click to meet The Keeper</div>
+  </div>
+
+  <div class="keeper-reveal" id="keeperReveal" aria-hidden="true">
     <img class="keeper-img" src="keeper.png" alt="Kari as The Keeper, holding a jar of gathered marbles and a ring of keys"
-         onerror="this.closest('.keeper-card').style.display='none'">
+         onerror="this.style.display='none'">
     <div class="keeper-cap">
       <span class="kc-name">The Keeper</span>
       <span class="kc-sub">every marble, gathered &middot; every chapter, a key</span>
     </div>
-  </div>
-
-  <div class="close-statement">
-    <div class="cs-lines">I don&rsquo;t sell bookkeeping.<br>I don&rsquo;t sell AI.<br>I don&rsquo;t sell payroll.</div>
-    <div class="cs-punch">I help businesses see what they&rsquo;ve been missing.</div>
   </div>
 
   <footer>
@@ -185,17 +191,9 @@ var EVENTS = [
     detail:"Books. AI. Systems. Founders who feel stuck.\n\nEvery chapter taught me something the next chapter needed — and I wouldn't erase a single one.\n\nSome people think my life went south. I think it went everywhere.\n\nMore chickens, marbles, and sanctified shenanigans ahead." }
 ];
 
-/* horizontal scatter (% of row) — makes it wander instead of marching in a line */
-var OFFSETS = [-6, 16, -20, 24, -8, 20, -16, 10, -22, 6, -14, 18, -10, 14];
-
 (function(){
   var tl = document.getElementById('tl');
   var svg = document.getElementById('tlpath');
-  var isMobile = window.innerWidth < 560;
-
-  function gcd(a,b){ while(b){ var t=b; b=a%b; a=t; } return a; }
-  // pick a "skip" that draws one continuous many-pointed star through all N points
-  function starStep(n){ var t=Math.max(2, Math.round(n*0.38)); for(var s=t;s>=2;s--){ if(gcd(s,n)===1) return s; } return 1; }
 
   var N = EVENTS.length, nodes = [];
   EVENTS.forEach(function(e, i){
@@ -212,23 +210,31 @@ var OFFSETS = [-6, 16, -20, 24, -8, 20, -16, 10, -22, 6, -14, 18, -10, 14];
     nodes.push({ node:node, bub:bub, e:e });
   });
 
-  // place the marbles around a circle and connect them in star order
+  // lay the marbles along a spiral — small at the center (1947), growing outward to what's next
   function layout(){
     var S = tl.clientWidth; if(!S) return;
-    var cx = S/2, cy = S/2, R = S*0.38;
-    var size = S<420 ? 46 : (S<560 ? 60 : 80);
+    var cx = S/2, cy = S/2;
+    var TURNS = 2.2, dth = TURNS * 2*Math.PI / (N-1), th0 = -Math.PI/2;
+    var r0 = S*0.05, rmax = S*0.40, dr = (rmax - r0) / (N-1);
+    var baseSize = S<420 ? 30 : (S<560 ? 40 : 46);
+    var grow = S<420 ? 1.5 : (S<560 ? 2.2 : 2.9);
     var pts = [];
     nodes.forEach(function(o, i){
-      var ang = -Math.PI/2 + i * 2*Math.PI / N;
-      var x = cx + R*Math.cos(ang), y = cy + R*Math.sin(ang);
+      var th = th0 + i*dth, r = r0 + i*dr;
+      var x = cx + r*Math.cos(th), y = cy + r*Math.sin(th);
+      var size = baseSize + i*grow;
       o.node.style.left = x + 'px'; o.node.style.top = y + 'px';
       o.node.style.width = size + 'px'; o.node.style.height = size + 'px';
-      o.bub.style.fontSize = (o.e.bubble.length > 3 ? size*0.17 : size*0.4) + 'px';
+      o.bub.style.fontSize = (o.e.bubble.length > 3 ? size*0.22 : size*0.42) + 'px';
       pts.push({ x:x, y:y });
     });
-    var step = starStep(N), idx = 0, d = 'M' + pts[0].x + ',' + pts[0].y;
-    for(var k=1;k<N;k++){ idx = (idx + step) % N; d += ' L' + pts[idx].x + ',' + pts[idx].y; }
-    d += ' Z';
+    // smooth dashed line spiralling through the marbles in order
+    var d = 'M' + pts[0].x + ',' + pts[0].y;
+    for(var i=1;i<pts.length;i++){
+      var xc = (pts[i-1].x + pts[i].x)/2, yc = (pts[i-1].y + pts[i].y)/2;
+      d += ' Q' + pts[i-1].x + ',' + pts[i-1].y + ' ' + xc + ',' + yc;
+    }
+    d += ' L' + pts[pts.length-1].x + ',' + pts[pts.length-1].y;
     svg.setAttribute('viewBox', '0 0 ' + S + ' ' + S);
     svg.innerHTML = '<path d="' + d + '" fill="none" stroke="#c9b8e8" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="2 11" opacity="0.92"/>';
   }
@@ -257,6 +263,16 @@ var OFFSETS = [-6, 16, -20, 24, -8, 20, -16, 10, -22, 6, -14, 18, -10, 14];
   document.getElementById('evx').onclick = closeEv;
   modal.addEventListener('click', function(ev){ if(ev.target === modal) closeEv(); });
   document.addEventListener('keydown', function(ev){ if(ev.key === 'Escape') closeEv(); });
+
+  // the finale: click the pink-purple closing box → The Keeper floats in
+  var closeStmt = document.getElementById('closeStmt'), keeperReveal = document.getElementById('keeperReveal');
+  if(closeStmt){
+    closeStmt.addEventListener('click', function(){
+      keeperReveal.classList.add('show');
+      var h = document.getElementById('csHint'); if(h) h.textContent = 'there she is. 🔑';
+      setTimeout(function(){ keeperReveal.scrollIntoView({ behavior:'smooth', block:'center' }); }, 260);
+    });
+  }
 })();
 </script>
 <script src="https://chat.karikounkel.com/widget.js" defer></script>
