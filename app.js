@@ -91,7 +91,7 @@
   // --- markup ---
   document.body.insertAdjacentHTML("afterbegin", `
 <button class="skip" id="skip">skip the game &rarr;</button>
-<a class="mystory" href="/about">&#10024; my story</a>
+<a class="mystory" href="https://kari-kounkel.github.io/karikounkel/about.html">&#10024; my story</a>
 <div class="listview" id="listview"><div class="lvinner">
   <button class="lvback" id="lvback">&larr; back to the marbles</button>
   <div class="lvtitle">Everything, in a list.</div>
