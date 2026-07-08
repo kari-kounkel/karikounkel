@@ -207,20 +207,26 @@
     var grow = S<420 ? 1.5 : (S<560 ? 2.2 : 2.9);
     var pts = [];
     nodes.forEach(function(o, i){
-      var th = th0 + i*dth, r = r0 + i*dr;
-      var x = cx + r*Math.cos(th), y = cy + r*Math.sin(th);
-      var size = baseSize + i*grow;
+      var x, y, size = baseSize + i*grow;
+      if(i === N-1){
+        // "what's next?" breaks off to the left — heading a new direction
+        x = S*0.075; y = S*0.66; size = baseSize + (N-5)*grow;
+      } else {
+        var th = th0 + i*dth, r = r0 + i*dr;
+        x = cx + r*Math.cos(th); y = cy + r*Math.sin(th);
+      }
       o.node.style.left = x + "px"; o.node.style.top = y + "px";
       o.node.style.width = size + "px"; o.node.style.height = size + "px";
       o.bub.style.fontSize = (o.e.bubble.length > 3 ? size*0.22 : size*0.42) + "px";
       pts.push({ x:x, y:y });
     });
     var d = "M" + pts[0].x + "," + pts[0].y;
-    for(var i=1;i<pts.length;i++){
+    for(var i=1;i<N-1;i++){
       var xc = (pts[i-1].x + pts[i].x)/2, yc = (pts[i-1].y + pts[i].y)/2;
       d += " Q" + pts[i-1].x + "," + pts[i-1].y + " " + xc + "," + yc;
     }
-    d += " L" + pts[pts.length-1].x + "," + pts[pts.length-1].y;
+    d += " L" + pts[N-2].x + "," + pts[N-2].y;   // land into 'Today'
+    d += " L" + pts[N-1].x + "," + pts[N-1].y;   // straight kick out to 'what's next?'
     svg.setAttribute("viewBox", "0 0 " + S + " " + S);
     svg.innerHTML = '<path d="' + d + '" fill="none" stroke="#c9b8e8" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="2 11" opacity="0.92"/>';
   }
