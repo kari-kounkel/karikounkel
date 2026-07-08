@@ -44,9 +44,6 @@
   .mnode .bubble{width:100%;height:100%;}
   .myr{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:5px;font-family:"Caveat",cursive;
     font-weight:700;font-size:15px;color:var(--pink);white-space:nowrap;line-height:1;pointer-events:none;text-shadow:0 1px 4px #fff,0 0 3px #fff;}
-  .mbadge{position:absolute;top:-3px;right:-3px;min-width:19px;height:19px;padding:0 3px;border-radius:50%;background:#fff;
-    color:var(--purple);font-family:"Nunito Sans",sans-serif;font-weight:800;font-size:11px;line-height:19px;text-align:center;
-    box-shadow:0 2px 6px rgba(70,40,110,.35);z-index:4;pointer-events:none;}
   .bubble{flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;
     font-family:Georgia,"Times New Roman",serif;font-weight:400;text-align:center;line-height:1.1;cursor:pointer;border:none;padding:0;position:relative;
     text-shadow:0 1px 3px rgba(0,0,0,.35);animation:bob 6s ease-in-out infinite;transition:transform .2s, box-shadow .25s;
@@ -75,7 +72,8 @@
   .close-statement:hover{transform:translateY(-2px);box-shadow:0 24px 54px -18px rgba(139,61,255,.7);}
   .close-statement .cs-lines{font-family:Georgia,"Times New Roman",serif;font-size:19px;line-height:1.7;opacity:.92;}
   .close-statement .cs-punch{font-family:Georgia,"Times New Roman",serif;font-weight:700;font-style:italic;font-size:clamp(21px,3vw,27px);margin-top:14px;line-height:1.35;}
-  .cs-hint{font-family:"Caveat",cursive;font-weight:700;font-size:21px;margin-top:16px;color:#fff;opacity:.92;}
+  .cs-super{font-family:"Caveat",cursive;font-weight:700;font-size:23px;margin-top:10px;color:#fff;opacity:.96;}
+  .cs-hint{font-family:"Caveat",cursive;font-weight:700;font-size:20px;margin-top:16px;color:#fff;opacity:.9;}
   .keeper-reveal{max-width:380px;margin:6px auto 4px;text-align:center;opacity:0;transform:translateY(26px) scale(.95);
     max-height:0;overflow:hidden;pointer-events:none;
     transition:opacity .7s ease, transform .8s cubic-bezier(.34,1.35,.5,1), max-height .8s ease, margin .6s ease;}
@@ -88,6 +86,8 @@
   footer{text-align:center;padding:26px 22px 60px;color:var(--muted);font-size:13px;}
   footer .wink{font-family:"Caveat",cursive;font-weight:700;font-size:22px;color:var(--pink);display:block;margin-top:8px;}
   footer a{color:var(--purple);text-decoration:none;font-weight:700;}
+  .logo,.sub,.pq-big,.pq-small,.ev-ti,.cs-punch,.cs-super,.cs-hint,.cs-lines,.kc-name,.kc-sub{text-wrap:balance;}
+  .ev-detail{text-wrap:pretty;}
   @media(max-width:520px){ .myr{font-size:12px;} }
   @media(max-width:400px){ .myr{display:none;} }
   `;
@@ -111,7 +111,8 @@
   <div class="close-statement" id="closeStmt">
     <div class="cs-lines">I don&rsquo;t sell bookkeeping.<br>I don&rsquo;t sell AI.<br>I don&rsquo;t sell payroll.</div>
     <div class="cs-punch">I help businesses see what they&rsquo;ve been missing.</div>
-    <div class="cs-hint" id="csHint">&#128273; click to meet The Keeper</div>
+    <div class="cs-super">It&rsquo;s almost like it&rsquo;s my super power.</div>
+    <div class="cs-hint" id="csHint">&#128273; click to meet The Keeper &mdash; aka Kari Kounkel</div>
   </div>
   <div class="keeper-reveal" id="keeperReveal" aria-hidden="true">
     <img class="keeper-img" src="${PAGES}keeper.png" alt="Kari as The Keeper, holding a jar of gathered marbles and a ring of keys" onerror="this.style.display='none'">
@@ -149,15 +150,15 @@
   //  Use \n inside detail for a line break (the poetic cadence).
   // ============================================================
   var EVENTS = [
-    { year:"Born, 1969", bubble:"🚌", title:"Getting There With Care", color:"#E5006E",
+    { year:"Born, 1969", bubble:"born", title:"Getting There With Care", color:"#E5006E",
       detail:"I was born into a family business where transportation wasn't just a job — it was dinner-table conversation.\n\nI learned early that every problem has a solution, if you're willing to keep looking." },
     { year:"Age 21", bubble:"21", title:"“I don't know… but I'll find out.”", color:"#8B3DFF",
       detail:"I started at Dad's full-time at 21 — with my baby on my hip and no desire to go to law school. Dad let me bring my baby to work.\n\nI answered phones knowing almost nothing about school transportation. So my favorite phrase became, “I don't know… but I'll find out.”\n\nThat curiosity turned into everything." },
-    { year:"More than the buses", bubble:"🎹", title:"The Community Years", color:"#00B4D8",
+    { year:"More than the buses", bubble:"serve", title:"The Community Years", color:"#00B4D8",
       detail:"I was never just the bus company.\n\nI played piano and served at church. I was a Rotarian and a member of the Chamber of Commerce. I was the key person in my community for foreign exchange students.\n\nShowing up for people was always the throughline." },
     { year:"The expert", bubble:"expert", title:"“I'll find out” became knowing", color:"#F4B400",
       detail:"What started as curiosity became expertise — teaching districts, solving compliance problems, becoming the person people called when they were stuck.\n\nIn 1996, after sitting on the panel that wrote the new laws, I wrote my first book: How to Hire and Train a School Bus Driver." },
-    { year:"National recognition", bubble:"★", title:"Excellence Is a Choice", color:"#FF8C42",
+    { year:"National recognition", bubble:"awards", title:"Excellence Is a Choice", color:"#FF8C42",
       detail:"My newsletter — 100% mine — won national awards four years in a row.\n\nMy philosophy became simple:\n\nCompliance is an obligation. Excellence is a choice." },
     { year:"April 10, 1997", bubble:"1997", title:"Everything Changed", color:"#2F4B7C",
       detail:"A dump truck blew a stop sign and hit our bus, killing three nine-year-old children.\n\nIt was national news. The NTSB arrived on our doorstep.\n\nParadigm-shifting, in the deepest sense of the word. Nothing was ever the same." },
@@ -165,7 +166,7 @@
       detail:"For decades, Dad sent me across Minnesota — negotiating contracts, teaching transportation management, improving operations, and finding profit where others couldn't.\n\nCadillac service at Pinto pricing. That was the standard." },
     { year:"1999–2011", bubble:"battle", title:"The Long Battle", color:"#C8369A",
       detail:"For twelve years we fought a bitter fight for our bus contract — against First Student and a consultant who desperately wanted them to have it.\n\nTwelve years. I didn't back down." },
-    { year:"The math story", bubble:"❤️", title:"“There's only one right number.”", color:"#EF476F",
+    { year:"The math story", bubble:"math", title:"“There's only one right number.”", color:"#EF476F",
       detail:"That same consultant publicly dismissed my bid calculations and slid them back across the table.\n\nI slid them right back.\n\n“With all due respect, Mr. Watson… the beauty of math is there's only one right number.”\n\nWe won the contract.\n\nThey never hired him again." },
     { year:"The hard lesson", bubble:"lesson", title:"You can't save a business that doesn't want saving", color:"#5A6ACF",
       detail:"I could see better systems. Better purchasing. Better margins. Better long-term decisions.\n\nBut sometimes being right isn't enough — if leadership won't listen.\n\nEventually, I walked away." },
@@ -191,8 +192,7 @@
     bub.innerHTML = "<span class='shine'></span><span class='blab'>" + e.bubble + "</span>";
     bub.onclick = function(){ openEv(i); };
     var yr = document.createElement("div"); yr.className = "myr"; yr.textContent = e.year;
-    var badge = document.createElement("div"); badge.className = "mbadge"; badge.textContent = (i+1);
-    node.appendChild(bub); node.appendChild(yr); node.appendChild(badge);
+    node.appendChild(bub); node.appendChild(yr);
     tl.appendChild(node);
     nodes.push({ node:node, bub:bub, e:e });
   });
