@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Confidentiality &amp; Non-Disclosure Agreement</title>
+<style>
+  :root{--ink:#1f2430;--muted:#6b7280;--line:#dfe3ea;--accent:#1e50e5;--bg:#f6f8fb;}
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:"Segoe UI",Calibri,system-ui,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.6;}
+  .sheet{max-width:760px;margin:0 auto;background:#fff;padding:40px 46px 56px;}
+  h1{font-size:22px;margin:0 0 4px;letter-spacing:.2px;}
+  .eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:700;}
+  .parties{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:22px 0 8px;}
+  .fld label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;margin-bottom:4px;}
+  .fld input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:15px;}
+  .fld input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(30,80,229,.12);}
+  h2{font-size:15px;margin:22px 0 4px;}
+  p.body{font-size:14px;margin:6px 0;}
+  ol{font-size:14px;padding-left:22px;}
+  ol li{margin:9px 0;}
+  .sigwrap{margin-top:26px;border-top:2px solid var(--line);padding-top:20px;}
+  .sigrow{display:grid;grid-template-columns:1fr 200px;gap:22px;align-items:end;}
+  .sigbox label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;margin-bottom:6px;}
+  canvas{width:100%;height:150px;background:#fff;border:1px solid var(--line);border-radius:8px;touch-action:none;display:block;cursor:crosshair;}
+  .sigmeta{font-size:12px;color:var(--muted);margin-top:6px;display:flex;justify-content:space-between;align-items:center;}
+  .lnk{background:none;border:none;color:var(--accent);cursor:pointer;font:inherit;font-size:12px;padding:0;}
+  .bar{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--line);padding:12px 46px;display:flex;gap:10px;align-items:center;justify-content:flex-end;max-width:760px;margin:0 auto;}
+  .btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:9px 15px;font:inherit;font-size:14px;cursor:pointer;color:var(--ink);}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+  .btn:hover{filter:brightness(.97);}
+  .hint{font-size:13px;color:var(--muted);margin-right:auto;}
+  .done{display:none;font-size:13px;color:#15803d;font-weight:600;}
+  .foot{font-size:11px;color:var(--muted);margin-top:26px;border-top:1px solid var(--line);padding-top:12px;}
+  @media print{
+    body{background:#fff;} .bar{display:none;} .sheet{max-width:none;padding:0;}
+    .fld input{border:none;padding:0;font-weight:600;} canvas{border:none;}
+    .sigmeta .lnk{display:none;}
+  }
+</style>
+</head>
+<body>
+<div class="bar">
+  <span class="hint">Sign with your finger, then Save as PDF to return it.</span>
+  <span class="done" id="done">✓ Signed</span>
+  <button class="btn" onclick="clearSig()">Clear signature</button>
+  <button class="btn primary" onclick="window.print()">Print / Save as PDF</button>
+</div>
+
+<div class="sheet">
+  <div class="eyebrow">Confidential</div>
+  <h1>Confidentiality &amp; Non-Disclosure Agreement</h1>
+
+  <div class="parties">
+    <div class="fld"><label>Company</label><input id="company" value="Minuteman Press Uptown"></div>
+    <div class="fld"><label>Recipient (full legal name)</label><input id="recipient" placeholder="Type name"></div>
+  </div>
+
+  <p class="body">This Confidentiality and Non-Disclosure Agreement (the &ldquo;Agreement&rdquo;) is entered into between the Company named above (&ldquo;Company&rdquo;) and the undersigned Recipient, effective on the date signed below.</p>
+
+  <ol>
+    <li><strong>Confidential Information.</strong> &ldquo;Confidential Information&rdquo; means any non-public information the Recipient learns or accesses through their relationship with the Company &mdash; including trade secrets, customer and vendor lists, pricing and financial data, business plans, processes, designs, files, software, and login credentials &mdash; whether written, spoken, or electronic.</li>
+    <li><strong>Obligations.</strong> Recipient agrees to (a) hold all Confidential Information in strict confidence; (b) use it only as needed to perform their duties for the Company; (c) not disclose it to any third party without the Company&rsquo;s prior written consent; and (d) protect it with at least the care they would use for their own confidential information.</li>
+    <li><strong>Exclusions.</strong> Confidential Information does not include information that becomes public through no fault of the Recipient, was lawfully known before disclosure, or is required to be disclosed by law (with prompt notice to the Company where permitted).</li>
+    <li><strong>Return of Materials.</strong> Upon request or when the relationship ends, Recipient will promptly return or destroy all materials containing Confidential Information and keep no copies.</li>
+    <li><strong>Ownership.</strong> All Confidential Information and work product remain the sole property of the Company. This Agreement grants Recipient no license or right to the Confidential Information beyond performing their duties.</li>
+    <li><strong>Term.</strong> These obligations survive the end of the relationship and continue for as long as the information remains confidential.</li>
+    <li><strong>Remedies.</strong> Recipient acknowledges that unauthorized disclosure may cause irreparable harm for which money damages are inadequate, and that the Company may seek injunctive relief in addition to any other remedy.</li>
+    <li><strong>General.</strong> This Agreement is governed by the laws of the State of Minnesota, is the entire agreement on this subject, and may be amended only in writing.</li>
+  </ol>
+
+  <p class="body">By signing below, Recipient acknowledges they have read, understand, and agree to this Agreement.</p>
+
+  <div class="sigwrap">
+    <div class="sigrow">
+      <div class="sigbox">
+        <label>Signature</label>
+        <canvas id="pad" width="600" height="150"></canvas>
+        <div class="sigmeta"><span>Sign above with your finger, stylus, or mouse.</span><button class="lnk" onclick="clearSig()">clear</button></div>
+      </div>
+      <div class="sigbox">
+        <label>Date signed</label>
+        <input id="date" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:15px;">
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  (function(){
+    var d = new Date();
+    document.getElementById('date').value =
+      d.toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
+  })();
+  var cv = document.getElementById('pad'), ctx = cv.getContext('2d');
+  var drawing = false, last = null, drew = false;
+  function pos(e){ var r = cv.getBoundingClientRect(); return {x:(e.clientX-r.left)*(cv.width/r.width), y:(e.clientY-r.top)*(cv.height/r.height)}; }
+  function down(e){ e.preventDefault(); drawing=true; last=pos(e); try{cv.setPointerCapture(e.pointerId);}catch(_){}; }
+  function move(e){ if(!drawing)return; e.preventDefault(); var p=pos(e); ctx.strokeStyle='#111'; ctx.lineWidth=2.4; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; if(!drew){drew=true; document.getElementById('done').style.display='inline';} }
+  function up(){ drawing=false; last=null; }
+  cv.addEventListener('pointerdown',down); cv.addEventListener('pointermove',move);
+  cv.addEventListener('pointerup',up); cv.addEventListener('pointerleave',up); cv.addEventListener('pointercancel',up);
+  window.clearSig = function(){ ctx.clearRect(0,0,cv.width,cv.height); drew=false; document.getElementById('done').style.display='none'; };
+</script>
+</body>
+</html>
