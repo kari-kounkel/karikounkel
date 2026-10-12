@@ -88,11 +88,14 @@
   `;
   document.head.appendChild(style);
 
+  // Reader links complement the existing game and visual identity.
+  style.textContent += '.reader-nav{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 20px;margin:18px auto 12px;max-width:760px;font-size:14px}.reader-nav a{color:#3a2f50;text-underline-offset:4px;padding:6px 2px}.reader-descriptor{font-size:14px;color:#4a3d63;margin-top:14px}a:focus-visible,button:focus-visible{outline:3px solid #3a2f50;outline-offset:4px}.marble span.t{position:relative;z-index:1;background:rgba(30,15,50,.68);border-radius:8px;padding:4px 6px}.marble .shine{opacity:.6}.lvds,.cds{color:#62566f}@media(prefers-reduced-motion:reduce){.marble{animation:none}.chip{animation:none}}';
+
   // --- markup ---
   document.body.insertAdjacentHTML("afterbegin", `
 <button class="skip" id="skip">skip the game &rarr;</button>
-<a class="mystory" href="https://kari-kounkel.github.io/karikounkel/about.html">&#10024; my story</a>
-<div class="listview" id="listview"><div class="lvinner">
+<a class="mystory" href="https://kari-kounkel.github.io/karikounkel/about.html">&#10024; About Kari</a>
+<div class="listview" id="listview" role="dialog" aria-modal="true" aria-label="All projects and destinations"><div class="lvinner">
   <button class="lvback" id="lvback">&larr; back to the marbles</button>
   <div class="lvtitle">Everything, in a list.</div>
   <div class="lvsub">For when you just want where you're going.</div>
@@ -103,6 +106,14 @@
     <div class="eyebrow">once upon a time&hellip;</div>
     <div class="logo">Kari <em>Kounkel</em></div>
     <div class="story">I thought I'd lost my marbles. Turns out they were never lost &mdash; just scattered.</div>
+    <div class="reader-descriptor">Writer. Blogger. Creator.</div>
+    <nav class="reader-nav" aria-label="Reader destinations">
+      <a href="https://karikounkel.shop/">Books &amp; bookstore</a>
+      <a href="https://karikounkel.substack.com/">Essays / The 13th Room</a>
+      <a href="https://karikounkel.substack.com/subscribe">Subscribe</a>
+      <a href="https://www.facebook.com/kariwriterbloggercreator/">Facebook</a>
+      <a href="mailto:kari@karikounkel.com">Contact</a>
+    </nav>
     <div class="sub">help me gather my marbles &darr;</div>
   </header>
   <div class="stage" id="stage">
@@ -128,14 +139,30 @@
   var opened={};
   function rnd(a,b){return a+Math.random()*(b-a);}
   function scatterPos(){
-    var w=stage.clientWidth, h=stage.clientHeight, sr=stage.getBoundingClientRect(), jr=jarzone.getBoundingClientRect();
-    var jx=jr.left-sr.left, jy=jr.top-sr.top, jw=jr.width||400, jh=jr.height||jw, pad=12;
-    stage.querySelectorAll(".marble").forEach(function(m){
-      m.style.display="flex"; m.style.opacity="1"; m.style.zIndex="7"; m.style.width=SIZE+"px"; m.style.height=SIZE+"px"; m.style.fontSize="12.5px"; m.style.transition="box-shadow .25s, transform .2s";
-      var x,y,t=0;
-      do{ x=rnd(6,Math.max(10,w-SIZE-6)); y=rnd(6,Math.max(10,h-SIZE-6)); t++; }
-      while(t<50 && x+SIZE>jx-pad && x<jx+jw+pad && y+SIZE>jy-pad && y<jy+jh+pad);
-      m.style.left=x+"px"; m.style.top=y+"px";
+    SIZE=window.innerWidth<560?74:90;
+    var w=stage.clientWidth, marbles=Array.from(stage.querySelectorAll('.marble')), positions=[];
+    stage.style.height='500px';
+    // Keep the original random scatter; grow the play area only when it is crowded.
+    for(var pass=0;pass<16;pass++){
+      positions=[];
+      var sr=stage.getBoundingClientRect(),jr=jarzone.getBoundingClientRect(),jx=jr.left-sr.left,jy=jr.top-sr.top;
+      for(var i=0;i<marbles.length;i++){
+        var found=false;
+        for(var attempt=0;attempt<400;attempt++){
+          var x=rnd(6,Math.max(6,w-SIZE-6)),y=rnd(12,Math.max(12,stage.clientHeight-SIZE-12));
+          if(x+SIZE>jx-8 && x<jx+jr.width+8 && y+SIZE>jy-12 && y<jy+jr.height+12)continue;
+          if(positions.some(function(p){return Math.abs(p.x-x)<SIZE+12 && Math.abs(p.y-y)<SIZE+20;}))continue;
+          positions.push({x:x,y:y});found=true;break;
+        }
+        if(!found)break;
+      }
+      if(positions.length===marbles.length)break;
+      stage.style.height=(stage.clientHeight+120)+'px';
+    }
+    marbles.forEach(function(m,i){
+      var pos=positions[i];if(!pos)return;
+      m.style.display='flex';m.style.opacity='1';m.style.zIndex='7';m.style.width=SIZE+'px';m.style.height=SIZE+'px';m.style.fontSize='12.5px';m.style.animation='';m.style.transition='box-shadow .25s, transform .2s';
+      m.style.left=pos.x+'px';m.style.top=pos.y+'px';
     });
   }
   function makeMarble(it,i){
@@ -145,7 +172,9 @@
     m.style.boxShadow="0 0 22px "+it.color+"AA, 0 0 9px "+it.color+", inset 0 -6px 12px rgba(0,0,0,.28)";
     m.style.animationDelay=(-i*0.45)+"s";
     m.innerHTML="<span class='shine'></span><span class='t'>"+it.label+"</span>";
-    m._it=it; attachDrag(m); stage.appendChild(m);
+    m._it=it; m.setAttribute('aria-label',it.name+' — '+it.desc+'. Press Enter or Space to collect.');
+    m.addEventListener('click',function(e){if(e.detail===0 && !opened[it.name])dropIn(m);});
+    attachDrag(m); stage.appendChild(m);
   }
   function attachDrag(m){
     var ox=0,oy=0;
@@ -210,7 +239,10 @@
   scatterPos();
   glass.addEventListener("load",scatterPos);
   document.getElementById("scatter").addEventListener("click",function(){ opened={}; dropped=0; tray.innerHTML=""; droplabel.style.opacity="1"; scatterPos(); });
-  window.addEventListener("resize",function(){ if(!Object.keys(opened).length) scatterPos(); });
+  window.addEventListener('resize',function(){
+    var collected=Array.from(stage.querySelectorAll('.marble')).filter(function(m){return opened[m._it.name];});
+    scatterPos();dropped=0;collected.forEach(dropIn);
+  });
 
   var lv=document.getElementById("listview"), lvrows=document.getElementById("lvrows");
   items.forEach(function(it){
@@ -225,8 +257,18 @@
   });
   window.openAskKari=function(){ var b=document.getElementById("ak-bub"); if(b){ b.click(); } else { window.location.href="mailto:kari@karikounkel.com"; } };
   startCountdowns();
-  document.getElementById("skip").addEventListener("click",function(){ lv.classList.add("open"); });
-  document.getElementById("lvback").addEventListener("click",function(){ lv.classList.remove("open"); });
+  var skip=document.getElementById('skip'), back=document.getElementById('lvback');
+  function closeList(){lv.classList.remove('open');skip.focus();}
+  skip.addEventListener('click',function(){lv.classList.add('open');back.focus();});
+  back.addEventListener('click',closeList);
+  lv.addEventListener('keydown',function(e){
+    if(e.key==='Escape'){e.preventDefault();closeList();}
+    if(e.key==='Tab'){
+      var controls=lv.querySelectorAll('button,a[href]'), first=controls[0], last=controls[controls.length-1];
+      if(e.shiftKey && document.activeElement===first){e.preventDefault();last.focus();}
+      else if(!e.shiftKey && document.activeElement===last){e.preventDefault();first.focus();}
+    }
+  });
 
   // --- Ask Kari widget ---
   var w=document.createElement("script"); w.src="https://chat.karikounkel.com/widget.js"; w.defer=true; document.body.appendChild(w);
