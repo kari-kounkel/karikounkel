@@ -1,36 +1,33 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Party Together
 
-## Getting Started
+The app behind `party.karikounkel.com`. Christmas Together (`/christmas`) is the first occasion;
+the engine in `lib/engine.ts` is occasion-neutral.
 
-First, run the development server:
+## Layout
+
+| Path | What it is |
+|---|---|
+| `db/migrations/` | Schema. Every table has RLS on with no policies — only server code reads or writes. |
+| `lib/engine.ts` | All the rules: who may see or change what. |
+| `lib/secrets.ts` | Invitation secrets and the Secret Santa draw. |
+| `lib/storage.ts` | Private photo storage (signed URLs only). |
+| `app/api/party/route.ts` | The API: one action per request, invitation secret in the `Authorization` header. |
+| `tests/` | Engine tests, including a 25-guest / 600-gift party. |
+
+## Environment variables
+
+| Name | Purpose |
+|---|---|
+| `DATABASE_URL` | Postgres connection string (Supabase transaction pooler). |
+| `INVITE_KEY` | 32 random bytes, base64. Encrypts invitation links at rest. |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Photo storage. Server-side only. |
+
+Never commit real values; `.env*` is git-ignored.
+
+## Running the tests
+
+Needs any Postgres 16. Point `TEST_DATABASE_URL` at an empty database (it is wiped on each run):
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+TEST_DATABASE_URL=postgres://postgres@localhost:5432/party_test npm test
 ```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
