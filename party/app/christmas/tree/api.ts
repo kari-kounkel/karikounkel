@@ -39,6 +39,7 @@ export type Tree = {
   guests: { id: string; name: string; isHost: boolean }[];
   presents: { id: string; wrap: string; bow: string; toId: string; fromId: string | null }[];
   assignment: { id: string; name: string } | null;
+  datePoll: { id: string; startsAt: string; voters: string[]; mine: boolean }[];
 };
 export type Link = { kind: string; url: string; label: string };
 export type Gift = {

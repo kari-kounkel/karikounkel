@@ -319,3 +319,50 @@ describe("rate limiting", () => {
     expect(await code(e.rateLimit(sql, key, 5, 3600))).toBe("slow_down");
   });
 });
+
+describe("choosing a date together", () => {
+  const day = (n: number) => new Date(Date.now() + n * 86400_000);
+  it("host proposes up to three dates, guests vote, host settles it", async () => {
+    const { sessions, tokens, host, partyId } = await makeParty(sql, 3);
+    const [, ann, bob, cy] = sessions;
+    expect(await code(e.proposeDates(sql, ann, [day(5)]))).toBe("forbidden");
+    await expect(e.proposeDates(sql, host, [day(5), day(6), day(7), day(8)])).rejects.toThrow();
+    expect(await code(e.proposeDates(sql, host, [day(-3)]))).toBe("invalid");
+    await e.proposeDates(sql, host, [day(5), day(6), day(7)]);
+
+    let poll = await e.datePoll(sql, ann);
+    expect(poll).toHaveLength(3);
+    await e.voteDates(sql, ann, [poll[0].id, poll[1].id]);
+    await e.voteDates(sql, bob, [poll[1].id]);
+    await e.voteDates(sql, cy, [poll[1].id, poll[2].id]);
+    await e.voteDates(sql, cy, [poll[1].id]); // changing your mind replaces your answer
+    poll = await e.datePoll(sql, bob);
+    expect(poll.map((o) => o.voters.length)).toEqual([1, 3, 0]);
+    expect(poll.map((o) => o.mine)).toEqual([false, true, false]);
+    expect(poll[1].voters).toEqual(["Guest 1", "Guest 2", "Guest 3"]);
+
+    // Re-proposing keeps votes on dates that stay and drops the rest.
+    const kept = poll[1].startsAt;
+    await e.proposeDates(sql, await fresh(sql, tokens[0]), [kept, day(9)]);
+    poll = await e.datePoll(sql, ann);
+    expect(poll).toHaveLength(2);
+    expect(poll[0].voters).toHaveLength(3);
+
+    expect(await code(e.chooseDate(sql, ann, poll[0].id))).toBe("forbidden");
+    await e.chooseDate(sql, await fresh(sql, tokens[0]), poll[0].id);
+    const [p] = await sql`select party_at, expires_at from parties where id = ${partyId}`;
+    expect(new Date(p.party_at).getTime()).toBe(new Date(kept).getTime());
+    expect(Math.round((new Date(p.expires_at).getTime() - new Date(kept).getTime()) / 86400_000)).toBe(30);
+  });
+
+  it("keeps one party's dates and votes out of another's", async () => {
+    const a = await makeParty(sql, 1);
+    const b = await makeParty(sql, 1);
+    await e.proposeDates(sql, a.host, [day(4)]);
+    await e.proposeDates(sql, b.host, [day(4)]);
+    const [optB] = await e.datePoll(sql, b.host);
+    expect(await code(e.voteDates(sql, a.sessions[1], [optB.id]))).toBe("not_found");
+    expect(await code(e.chooseDate(sql, a.host, optB.id))).toBe("not_found");
+    expect((await e.datePoll(sql, b.host))[0].voters).toEqual([]);
+  });
+});

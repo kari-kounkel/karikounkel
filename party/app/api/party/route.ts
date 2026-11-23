@@ -29,6 +29,7 @@ const actions: Record<string, (c: Ctx) => Promise<unknown>> = {
   tree: async ({ sql, s }) => ({
     ...(await e.treeView(sql, s)),
     assignment: s.party.exchange_mode === "secret_santa" ? await e.myAssignment(sql, s) : null,
+    datePoll: await e.datePoll(sql, s),
   }),
   myGifts: async (c) => ({ gifts: await lazyUrls(c, await e.myGivenGifts(c.sql, c.s)) }),
   received: async (c) => ({ gifts: await lazyUrls(c, await e.myReceivedGifts(c.sql, c.s)) }),
@@ -68,7 +69,11 @@ const actions: Record<string, (c: Ctx) => Promise<unknown>> = {
   thanks: async ({ sql, s, body }) => ({ messages: await e.listThanks(sql, s, id.parse(body.giftId)) }),
   sayThanks: async ({ sql, s, body }) => ({ id: await e.postThanks(sql, s, id.parse(body.giftId), body) }),
 
+  voteDates: async ({ sql, s, body }) => (await e.voteDates(sql, s, body.optionIds), { ok: true }),
+
   // --- host only (the engine enforces it) ---
+  proposeDates: async ({ sql, s, body }) => (await e.proposeDates(sql, s, body.dates), { ok: true }),
+  chooseDate: async ({ sql, s, body }) => (await e.chooseDate(sql, s, id.parse(body.optionId)), { ok: true }),
   updateParty: async ({ sql, s, body }) => (await e.updateParty(sql, s, body.settings), { ok: true }),
   addGuest: async ({ sql, s, body }) => e.addGuest(sql, s, { name: body.name, email: body.email }),
   removeGuest: async ({ sql, s, body }) => (await e.removeGuest(sql, s, id.parse(body.guestId)), { ok: true }),

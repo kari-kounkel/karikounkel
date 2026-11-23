@@ -560,3 +560,54 @@ export async function purgeExpired(sql: Sql, now = new Date()): Promise<{ partie
     return { parties: expired.length, paths };
   });
 }
+
+// ---------- choosing a date together ----------
+
+export const MAX_DATE_OPTIONS = 3;
+
+/** Host proposes up to three possible dates. This (re)opens the vote: the party has no date until one is chosen. */
+export async function proposeDates(sql: Sql, s: Session, raw: unknown): Promise<void> {
+  if (!s.guest.is_host) throw deny("Only the host can propose dates");
+  if (s.party.status === "opened") throw bad("The party has already been opened");
+  const dates = z.array(z.coerce.date()).min(1, "Add at least one date").max(MAX_DATE_OPTIONS).parse(raw);
+  const unique = [...new Set(dates.map((d) => d.getTime()))].map((t) => new Date(t));
+  if (unique.some((d) => d.getTime() < Date.now() - 3600_000)) throw bad("Those dates need to be in the future");
+  await sql.begin(async (tx) => {
+    await tx`select id from parties where id = ${s.party.id} for no key update`;
+    // Dates that stay keep their votes; removed ones take their votes with them.
+    await tx`delete from date_options where party_id = ${s.party.id} and not (starts_at = any(${unique}))`;
+    for (const d of unique) await tx`insert into date_options (party_id, starts_at) values (${s.party.id}, ${d}) on conflict do nothing`;
+    await tx`update parties set party_at = null, expires_at = ${expiryFor(null)} where id = ${s.party.id}`;
+  });
+}
+
+/** A guest says which of the proposed dates they can make. Replaces their earlier answer. */
+export async function voteDates(sql: Sql, s: Session, raw: unknown): Promise<void> {
+  const ids = z.array(z.string().uuid()).max(MAX_DATE_OPTIONS).parse(raw);
+  await sql.begin(async (tx) => {
+    const options = await tx`select id from date_options where party_id = ${s.party.id}`;
+    const valid = new Set(options.map((o) => o.id as string));
+    if (ids.some((id) => !valid.has(id))) throw missing("That date is not on this party's list");
+    await tx`delete from date_votes where guest_id = ${s.guest.id} and option_id = any(${[...valid]})`;
+    for (const id of new Set(ids)) await tx`insert into date_votes (option_id, guest_id) values (${id}, ${s.guest.id})`;
+  });
+}
+
+/** Host settles it: the chosen option becomes the party date. */
+export async function chooseDate(sql: Sql, s: Session, optionId: string): Promise<void> {
+  if (!s.guest.is_host) throw deny("Only the host can choose the date");
+  if (s.party.status === "opened") throw bad("The party has already been opened");
+  const [o] = await sql`select starts_at from date_options where id = ${optionId} and party_id = ${s.party.id}`;
+  if (!o) throw missing("That date is not on this party's list");
+  await sql`update parties set party_at = ${o.starts_at}, expires_at = ${expiryFor(o.starts_at as Date)} where id = ${s.party.id}`;
+}
+
+/** The vote as everyone at the party sees it: each date, who can make it, and whether I said yes. */
+export async function datePoll(sql: Sql, s: Session) {
+  const rows = await sql`
+    select o.id, o.starts_at,
+      coalesce((select json_agg(g.name order by g.created_at) from date_votes v join guests g on g.id = v.guest_id where v.option_id = o.id), '[]'::json) as voters,
+      exists (select 1 from date_votes v where v.option_id = o.id and v.guest_id = ${s.guest.id}) as mine
+    from date_options o where o.party_id = ${s.party.id} order by o.starts_at`;
+  return rows.map((r) => ({ id: r.id as string, startsAt: r.starts_at as Date, voters: r.voters as string[], mine: r.mine as boolean }));
+}

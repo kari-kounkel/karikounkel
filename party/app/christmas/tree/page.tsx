@@ -171,6 +171,9 @@ export default function TreePage() {
           <p className="say" aria-live="polite">{say}</p>
           <ul className="steps" aria-label="Your progress">
             <li className="done">✓ Joined</li>
+            {!party.partyAt && !opened && tree.datePoll.length > 0 && (
+              <li className={tree.datePoll.some((o) => o.mine) ? "done" : ""}>{tree.datePoll.some((o) => o.mine) ? "✓ Date vote in" : "📅 Vote on the date ↓"}</li>
+            )}
             {party.exchangeMode === "secret_santa" && <li className={tree.assignment ? "done" : ""}>{tree.assignment ? `🤫 You drew ${tree.assignment.name}` : "Names not drawn yet"}</li>}
             <li className={wrappedByMe ? "done" : ""}>{wrappedByMe ? `✓ ${wrappedByMe} wrapped` : "Wrap a gift"}</li>
             <li className={opened ? "done" : ""}>{opened ? "✓ Opened" : "Opening together"}</li>
@@ -184,6 +187,8 @@ export default function TreePage() {
       {opened && <div className="banner">🎄 The presents are open!</div>}
 
       <div className="below">
+        {!party.partyAt && !opened && tree.datePoll.length > 0 && <DateVote token={token} tree={tree} refresh={refresh} />}
+
         {opened && (
           <section className="sec" id="mine">
             <h2>Your presents</h2>
@@ -232,6 +237,50 @@ export default function TreePage() {
       {editing && <GiftEditor token={token} giftId={editing} from={me.name} close={() => { setEditing(null); refresh(); }} />}
       {viewing && <GiftViewer token={token} giftId={viewing} me={me.id} close={() => setViewing(null)} />}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------- choosing a date together
+
+const fmtDate = (iso: string) => new Date(iso).toLocaleString([], { weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" });
+
+function DateVote({ token, tree, refresh }: { token: string; tree: Tree; refresh: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const mine = tree.datePoll.filter((o) => o.mine).map((o) => o.id);
+  const run = async (fn: () => Promise<unknown>) => {
+    setBusy(true);
+    setError("");
+    try { await fn(); await refresh(); } catch (e) { setError(e instanceof Error ? e.message : "Something went wrong"); } finally { setBusy(false); }
+  };
+  const toggle = (id: string) => run(() => api(token, "voteDates", { optionIds: mine.includes(id) ? mine.filter((x) => x !== id) : [...mine, id] }));
+  const most = Math.max(...tree.datePoll.map((o) => o.voters.length));
+
+  return (
+    <section className="sec" id="dates">
+      <h2>When should we celebrate?</h2>
+      <p>Tap every date you can make. You can change your answer any time before {tree.guests.find((g) => g.isHost)?.name ?? "the host"} decides.</p>
+      <ul className="dates">
+        {tree.datePoll.map((o) => (
+          <li key={o.id} className={o.mine ? "yes" : ""}>
+            <button className="pick" aria-pressed={o.mine} disabled={busy} onClick={() => toggle(o.id)}>
+              <span className="box" aria-hidden="true">{o.mine ? "✓" : ""}</span>
+              <span className="grow">
+                <span className="who">{fmtDate(o.startsAt)}</span>
+                <span className="muted">
+                  {o.voters.length === 0 ? "Nobody yet" : `${o.voters.length} can come: ${o.voters.join(", ")}`}
+                  {most > 0 && o.voters.length === most && tree.datePoll.length > 1 ? " ⭐" : ""}
+                </span>
+              </span>
+            </button>
+            {tree.me.isHost && (
+              <button className="btn small gold" disabled={busy} onClick={() => confirm(`Set the party for ${fmtDate(o.startsAt)}?`) && run(() => api(token, "chooseDate", { optionId: o.id }))}>Choose this date</button>
+            )}
+          </li>
+        ))}
+      </ul>
+      {error && <div className="err" role="alert">{error}</div>}
+    </section>
   );
 }
 
@@ -576,6 +625,8 @@ function HostPanel({ token, tree, refresh }: { token: string; tree: Tree; refres
             }))}>Save party details</button>
           </div>
 
+          {!opened && <ProposeDates token={token} tree={tree} run={run} />}
+
           <h3>Guests ({tree.guests.length} of 25)</h3>
           <p className="muted">Each person gets a personal link. It is their key, so send one link per person.</p>
           <ul className="rows">
@@ -607,6 +658,29 @@ function HostPanel({ token, tree, refresh }: { token: string; tree: Tree; refres
           {error && <div className="err" role="alert">{error}</div>}
         </div>
       </details>
+    </>
+  );
+}
+
+function ProposeDates({ token, tree, run }: { token: string; tree: Tree; run: (fn: () => Promise<unknown>) => Promise<void> }) {
+  const existing = tree.datePoll.map((o) => toLocalInput(o.startsAt));
+  const [dates, setDates] = useState<string[]>([existing[0] ?? "", existing[1] ?? "", existing[2] ?? ""]);
+  const filled = dates.filter(Boolean);
+  return (
+    <>
+      <h3>Not sure of the date? Let everyone vote</h3>
+      <p className="muted">Offer up to three dates. Your guests tap the ones they can make, and you choose the winner.</p>
+      {dates.map((d, i) => (
+        <label className="field" key={i}>Option {i + 1}
+          <input type="datetime-local" value={d} onChange={(e) => setDates(dates.map((x, j) => (j === i ? e.target.value : x)))} />
+        </label>
+      ))}
+      <div className="row" style={{ marginTop: 16 }}>
+        <button className="btn small" disabled={filled.length === 0}
+          onClick={() => (!tree.party.partyAt || confirm("This replaces the date you already set with a vote. Continue?")) && run(() => api(token, "proposeDates", { dates: filled.map((x) => new Date(x).toISOString()) }))}>
+          {tree.datePoll.length ? "Update the vote" : "Ask my guests"}
+        </button>
+      </div>
     </>
   );
 }
