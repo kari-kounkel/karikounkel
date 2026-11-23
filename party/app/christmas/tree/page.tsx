@@ -824,6 +824,12 @@ function HostPanel({ token, tree, refresh }: { token: string; tree: Tree; refres
       setError(e instanceof Error ? e.message : "Something went wrong");
     }
   };
+  const [saved, setSaved] = useState("");
+  const voting = !party.partyAt && tree.datePoll.length > 0;
+  const save = async (settings: Record<string, unknown>, done: string) => {
+    setSaved("");
+    try { await api(token, "updateParty", { settings }); await refresh(); setError(""); setSaved(done); } catch (e) { setSaved(`Not saved: ${e instanceof Error ? e.message : "something went wrong"}`); }
+  };
   const linkFor = (g: HostGuest) => `${window.location.origin}/christmas/tree#t=${g.token}`;
   const locked = party.namesDrawn;
   const opened = party.status === "opened";
@@ -857,7 +863,18 @@ function HostPanel({ token, tree, refresh }: { token: string; tree: Tree; refres
 
           <h3>Your party</h3>
           <label className="field">Party name<input value={form.name} maxLength={80} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-          <label className="field">When is the party?<span className="hint">Enter it in your own time, {myZone()}. Each guest sees it converted to theirs.</span><input type="datetime-local" value={form.party_at} disabled={opened} onChange={(e) => setForm({ ...form, party_at: e.target.value })} /></label>
+          {voting ? (
+            <p className="field">When is the party?<span className="hint">Not set yet. Your guests are voting on the dates you offered. When you are ready, choose one under “Lock in” near the top of this page and it becomes the party date.</span></p>
+          ) : (
+            <label className="field">When is the party?<span className="hint">Leave this empty if you do not know yet. Enter it in your own time, {myZone()}. Each guest sees it converted to theirs.</span>
+              <input type="datetime-local" value={form.party_at} disabled={opened} onChange={(e) => { setSaved(""); setForm({ ...form, party_at: e.target.value }); }} />
+              {form.party_at && !opened && (
+                <button type="button" className="btn small quiet" style={{ marginTop: 8 }} onClick={() => { setForm({ ...form, party_at: "" }); save({ party_at: null }, tree.datePoll.length > 0 ? "Date removed. Your guests can vote again." : "Date removed. No date is set."); }}>
+                  {tree.datePoll.length > 0 ? "Remove this date and go back to the vote" : "Remove the date (not decided yet)"}
+                </button>
+              )}
+            </label>
+          )}
           <label className="field">Your Google Meet link<span className="hint">Create the meeting in your own Google account and paste its link.</span>
             <input value={form.meet_url} placeholder="https://meet.google.com/abc-defg-hij" onChange={(e) => setForm({ ...form, meet_url: e.target.value })} /></label>
           <label className="field">Exchange type
@@ -869,9 +886,9 @@ function HostPanel({ token, tree, refresh }: { token: string; tree: Tree; refres
             </select>
           </label>
           <div className="row" style={{ marginTop: 16 }}>
-            <button className="btn small" onClick={() => run(() => api(token, "updateParty", {
-              settings: { name: form.name, meet_url: form.meet_url, ...(opened ? {} : { party_at: form.party_at ? new Date(form.party_at).toISOString() : null }) },
-            }))}>Save party details</button>
+            <button className="btn small" onClick={() => save({ name: form.name, meet_url: form.meet_url, ...(opened || voting ? {} : { party_at: form.party_at ? new Date(form.party_at).toISOString() : null }) },
+              opened || voting ? "Saved ✓" : form.party_at ? `Saved ✓ Party date: ${fmtDate(new Date(form.party_at).toISOString())}` : "Saved ✓ No date set yet.")}>Save party details</button>
+            {saved && <span className="saved" role="status">{saved}</span>}
           </div>
 
           {!opened && <ProposeDates token={token} tree={tree} run={run} />}
