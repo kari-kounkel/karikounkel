@@ -69,20 +69,23 @@ const actions: Record<string, (c: Ctx) => Promise<unknown>> = {
   thanks: async ({ sql, s, body }) => ({ messages: await e.listThanks(sql, s, id.parse(body.giftId)) }),
   sayThanks: async ({ sql, s, body }) => ({ id: await e.postThanks(sql, s, id.parse(body.giftId), body) }),
 
+  // Any guest may bring someone; they see only the links of people they added themselves.
+  addGuest: async ({ sql, s, body }) => e.addGuest(sql, s, { name: body.name, email: body.email }),
+  myInvites: async ({ sql, s }) => ({ guests: await e.myInvites(sql, s) }),
+  setMyEmail: async ({ sql, s, body }) => (await e.setMyEmail(sql, s, body.email), { ok: true }),
   voteDates: async ({ sql, s, body }) => (await e.voteDates(sql, s, body.optionIds), { ok: true }),
 
   // --- host only (the engine enforces it) ---
   proposeDates: async ({ sql, s, body }) => (await e.proposeDates(sql, s, body.dates), { ok: true }),
   chooseDate: async ({ sql, s, body }) => (await e.chooseDate(sql, s, id.parse(body.optionId)), { ok: true }),
   updateParty: async ({ sql, s, body }) => (await e.updateParty(sql, s, body.settings), { ok: true }),
-  addGuest: async ({ sql, s, body }) => e.addGuest(sql, s, { name: body.name, email: body.email }),
   removeGuest: async ({ sql, s, body }) => (await e.removeGuest(sql, s, id.parse(body.guestId)), { ok: true }),
   guestLinks: async ({ sql, s }) => ({ guests: await e.listGuestLinks(sql, s) }),
   drawNames: async ({ sql, s }) => (await e.drawNames(sql, s), { ok: true }),
   openParty: async ({ sql, s }) => (await e.openParty(sql, s), { ok: true }),
 };
 
-const READS = new Set(["tree", "myGifts", "received", "gift", "thanks", "guestLinks"]);
+const READS = new Set(["tree", "myGifts", "received", "gift", "thanks", "guestLinks", "myInvites"]);
 
 export async function POST(req: Request) {
   const sql = await ready();

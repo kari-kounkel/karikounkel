@@ -2,7 +2,7 @@
 
 import { useAskKari } from "../ask-kari";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ApiError, REACTIONS, api, loadToken, type Gift, type HostGuest, type Link, type Tree } from "./api";
+import { ApiError, REACTIONS, api, loadToken, sendLink, type Gift, type HostGuest, type Link, type Tree } from "./api";
 import "@fontsource/great-vibes/latin-400.css";
 import "@fontsource/nunito-sans/latin-400.css";
 import "@fontsource/nunito-sans/latin-600.css";
@@ -231,6 +231,7 @@ export default function TreePage() {
           </ul>
         </section>
 
+        {!me.isHost && <GuestExtras token={token} tree={tree} refresh={refresh} />}
         {me.isHost && <HostPanel token={token} tree={tree} refresh={refresh} />}
 
         <p className="foot">This party and everything in it is deleted on {new Date(party.expiresAt).toLocaleDateString([], { dateStyle: "long" })}.</p>
@@ -239,6 +240,68 @@ export default function TreePage() {
       {editing && <GiftEditor token={token} giftId={editing} from={me.name} close={() => { setEditing(null); refresh(); }} />}
       {viewing && <GiftViewer token={token} giftId={viewing} me={me.id} close={() => setViewing(null)} />}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------- a guest's own corner: bring someone, add an email
+
+function SendButton({ guest, partyName }: { guest: { name: string; token: string }; partyName: string }) {
+  const [note, setNote] = useState("");
+  return (
+    <button className="btn small" onClick={async () => { const r = await sendLink(guest.name, partyName, guest.token); setNote(r === "copied" ? "Copied ✓" : r === "shared" ? "Sent ✓" : ""); }}>
+      {note || "Send link"}
+    </button>
+  );
+}
+
+function GuestExtras({ token, tree, refresh }: { token: string; tree: Tree; refresh: () => Promise<void> }) {
+  const { party, me } = tree;
+  const [mine, setMine] = useState<{ id: string; name: string; hasVisited: boolean; token: string }[]>([]);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState(me.email ?? "");
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+  const load = useCallback(async () => setMine((await api<{ guests: typeof mine }>(token, "myInvites")).guests), [token]);
+  useEffect(() => { load().catch(() => {}); }, [load]);
+  const canBring = party.status !== "opened" && !party.namesDrawn && tree.guests.length < 25;
+  const run = async (fn: () => Promise<unknown>) => {
+    setError("");
+    try { await fn(); await refresh(); await load(); } catch (e) { setError(e instanceof Error ? e.message : "Something went wrong"); }
+  };
+
+  return (
+    <>
+      {(canBring || mine.length > 0) && (
+        <section className="sec" id="bring">
+          <h2>Bring someone</h2>
+          <p>Is someone missing, like your husband or your sister? Add them and send them their own link.</p>
+          <ul className="rows">
+            {mine.map((g) => (
+              <li key={g.id}>
+                <span className="grow"><span className="who">{g.name}</span> <span className={`pill ${g.hasVisited ? "done" : ""}`}>{g.hasVisited ? "Has visited" : "Not yet"}</span></span>
+                <SendButton guest={g} partyName={party.name} />
+              </li>
+            ))}
+          </ul>
+          {canBring && (
+            <form className="row" style={{ marginTop: 14 }} onSubmit={(e) => { e.preventDefault(); if (name.trim()) run(async () => { await api(token, "addGuest", { name }); setName(""); }); }}>
+              <input aria-label="Their name" className="grow inline-input" style={{ width: "auto", marginTop: 0 }} value={name} maxLength={40} placeholder="Their name" onChange={(e) => setName(e.target.value)} />
+              <button className="btn small" type="submit">Add them</button>
+            </form>
+          )}
+        </section>
+      )}
+
+      <section className="sec" id="email">
+        <h2>Your email</h2>
+        <p>Optional. Only you and {tree.guests.find((g) => g.isHost)?.name ?? "the host"} can see it. It is for news about this party and nothing else.</p>
+        <form className="row" onSubmit={(e) => { e.preventDefault(); run(async () => { await api(token, "setMyEmail", { email: email.trim() }); setSaved(true); }); }}>
+          <input aria-label="Your email" type="email" className="grow inline-input" style={{ width: "auto", marginTop: 0 }} value={email} maxLength={200} placeholder="you@example.com" onChange={(e) => { setEmail(e.target.value); setSaved(false); }} />
+          <button className="btn small" type="submit">{saved ? "Saved ✓" : "Save"}</button>
+        </form>
+        {error && <div className="err" role="alert">{error}</div>}
+      </section>
+    </>
   );
 }
 
@@ -630,13 +693,15 @@ function HostPanel({ token, tree, refresh }: { token: string; tree: Tree; refres
           {!opened && <ProposeDates token={token} tree={tree} run={run} />}
 
           <h3>Guests ({tree.guests.length} of 25)</h3>
-          <p className="muted">Each person gets a personal link. It is their key, so send one link per person.</p>
+          <p className="muted">Each person gets a personal link. It is their key, so send one link per person. You only need a name; guests can add their own email, and can bring someone themselves.</p>
           <ul className="rows">
             {links.map((g) => (
               <li key={g.id}>
-                <span className="grow"><span className="who">{g.name}</span>{g.isHost && " (you)"} <span className={`pill ${g.hasVisited ? "done" : ""}`}>{g.hasVisited ? "Has visited" : "Not yet"}</span></span>
+                <span className="grow"><span className="who">{g.name}</span>{g.isHost && " (you)"} <span className={`pill ${g.hasVisited ? "done" : ""}`}>{g.hasVisited ? "Has visited" : "Not yet"}</span>
+                  {(g.email || g.invitedBy) && <span className="muted" style={{ display: "block" }}>{[g.email, g.invitedBy && `added by ${g.invitedBy}`].filter(Boolean).join(" · ")}</span>}</span>
                 {!g.isHost && (
                   <>
+                    <SendButton guest={g} partyName={party.name} />
                     <button className="btn small quiet" onClick={async () => { await navigator.clipboard.writeText(linkFor(g)); setCopied(g.id); }}>{copied === g.id ? "Copied ✓" : "Copy link"}</button>
                     {!locked && <button className="linkish" onClick={() => confirm(`Remove ${g.name}?`) && run(() => api(token, "removeGuest", { guestId: g.id }))}>Remove</button>}
                   </>

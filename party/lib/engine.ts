@@ -175,13 +175,18 @@ export async function updateParty(sql: Sql, s: Session, raw: unknown): Promise<v
 
 // ---------- guests ----------
 
+/**
+ * Adds a person to the party and returns their personal link secret.
+ * The host can always do this. A guest can too (to bring a spouse, say); we record who invited whom,
+ * and a guest can only ever see the links of the people they added themselves.
+ */
 export async function addGuest(
   sql: Sql,
   s: Session,
   raw: { name: unknown; email?: unknown },
 ): Promise<{ id: string; token: string }> {
-  if (!s.guest.is_host) throw deny("Only the host can invite guests");
   if (s.party.drawn_at) throw bad("Names are already drawn, so the guest list is locked");
+  if (s.party.status === "opened") throw bad("The party has already been opened");
   const name = nameSchema.parse(raw.name);
   const email = raw.email ? emailSchema.parse(raw.email) : null;
   const token = newToken();
@@ -190,11 +195,25 @@ export async function addGuest(
     const [{ n }] = await tx`select count(*)::int as n from guests where party_id = ${s.party.id}`;
     if (n >= MAX_GUESTS) throw bad(`A party holds up to ${MAX_GUESTS} people`);
     const [g] = await tx`
-      insert into guests (party_id, name, email, token_hash, token_enc)
-      values (${s.party.id}, ${name}, ${email}, ${hashToken(token)}, ${encryptToken(token)})
+      insert into guests (party_id, name, email, token_hash, token_enc, invited_by)
+      values (${s.party.id}, ${name}, ${email}, ${hashToken(token)}, ${encryptToken(token)}, ${s.guest.is_host ? null : s.guest.id})
       returning id`;
     return { id: g.id as string, token };
   });
+}
+
+/** The people I added myself, with their links, so I can pass them along. Never anyone else's. */
+export async function myInvites(sql: Sql, s: Session) {
+  const rows = await sql`
+    select id, name, token_enc, first_seen_at from guests
+    where party_id = ${s.party.id} and invited_by = ${s.guest.id} order by created_at`;
+  return rows.map((r) => ({ id: r.id as string, name: r.name as string, hasVisited: !!r.first_seen_at, token: decryptToken(r.token_enc) }));
+}
+
+/** A guest adds or changes their own email address. Only they and the host can see it. */
+export async function setMyEmail(sql: Sql, s: Session, raw: unknown): Promise<void> {
+  const email = raw === "" || raw == null ? null : emailSchema.parse(raw);
+  await sql`update guests set email = ${email} where id = ${s.guest.id}`;
 }
 
 export async function removeGuest(sql: Sql, s: Session, guestId: string): Promise<void> {
@@ -209,14 +228,16 @@ export async function removeGuest(sql: Sql, s: Session, guestId: string): Promis
 export async function listGuestLinks(sql: Sql, s: Session) {
   if (!s.guest.is_host) throw deny();
   const rows = await sql`
-    select id, name, email, is_host, token_enc, first_seen_at from guests
-    where party_id = ${s.party.id} order by created_at`;
+    select g.id, g.name, g.email, g.is_host, g.token_enc, g.first_seen_at, i.name as invited_by
+    from guests g left join guests i on i.id = g.invited_by
+    where g.party_id = ${s.party.id} order by g.created_at`;
   return rows.map((r) => ({
     id: r.id as string,
     name: r.name as string,
     email: r.email as string | null,
     isHost: r.is_host as boolean,
     hasVisited: !!r.first_seen_at,
+    invitedBy: (r.invited_by as string | null) ?? null,
     token: decryptToken(r.token_enc),
   }));
 }
@@ -461,7 +482,7 @@ export async function treeView(sql: Sql, s: Session) {
       expiresAt: party.expires_at,
       isDemo: party.is_demo,
     },
-    me: { id: s.guest.id, name: s.guest.name, isHost: s.guest.is_host },
+    me: { id: s.guest.id, name: s.guest.name, isHost: s.guest.is_host, email: s.guest.email },
     guests: guests.map((g) => ({ id: g.id as string, name: g.name as string, isHost: g.is_host as boolean })),
     presents: presents.map((g) => ({
       id: g.id as string,

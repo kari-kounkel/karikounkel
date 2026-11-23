@@ -35,7 +35,7 @@ export type Tree = {
     name: string; theme: string; exchangeMode: "everyone" | "secret_santa" | "open"; partyAt: string | null;
     meetUrl: string | null; status: "active" | "opened"; namesDrawn: boolean; expiresAt: string;
   };
-  me: { id: string; name: string; isHost: boolean };
+  me: { id: string; name: string; isHost: boolean; email: string | null };
   guests: { id: string; name: string; isHost: boolean }[];
   presents: { id: string; wrap: string; bow: string; toId: string; fromId: string | null }[];
   assignment: { id: string; name: string } | null;
@@ -47,8 +47,29 @@ export type Gift = {
   status: "draft" | "wrapped"; wrap: string; bow: string; title: string; message: string; coupon: string;
   links: Link[]; photos: { id: string; url: string }[];
 };
-export type HostGuest = { id: string; name: string; isHost: boolean; hasVisited: boolean; token: string };
+export type HostGuest = { id: string; name: string; isHost: boolean; hasVisited: boolean; token: string; email?: string | null; invitedBy?: string | null };
 
 export const WRAPS = ["red", "green", "gold", "snow", "plaid", "stars", "candy", "kraft"];
 export const BOWS = ["gold", "red", "silver", "green", "white"];
 export const REACTIONS = ["❤️", "😂", "😭", "🥹", "🎉", "🙏"];
+
+export const linkFor = (token: string) => `${window.location.origin}/christmas/tree#t=${token}`;
+
+/**
+ * Hands a personal link to the phone's own share sheet (Messages, WhatsApp, email…), or copies it
+ * where there is no share sheet. Returns what happened so the button can say so.
+ */
+export async function sendLink(guestName: string, partyName: string, token: string): Promise<"shared" | "copied" | "cancelled"> {
+  const url = linkFor(token);
+  const text = `${guestName}, you are invited to ${partyName}! This is your personal link — it is your key, so please do not pass it on:`;
+  if (typeof navigator.share === "function") {
+    try {
+      await navigator.share({ text, url });
+      return "shared";
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return "cancelled";
+    }
+  }
+  await navigator.clipboard.writeText(`${text} ${url}`);
+  return "copied";
+}

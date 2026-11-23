@@ -53,7 +53,7 @@ describe("invitations", () => {
     const { sessions, host } = await makeParty(sql, 24);
     expect(sessions).toHaveLength(25);
     expect(await code(e.addGuest(sql, host, { name: "Twenty-six" }))).toBe("invalid");
-    expect(await code(e.addGuest(sql, sessions[1], { name: "Sneak" }))).toBe("forbidden");
+    expect(await code(e.addGuest(sql, sessions[1], { name: "One too many" }))).toBe("invalid"); // the cap binds guests too
     expect(await code(e.listGuestLinks(sql, sessions[1]))).toBe("forbidden");
     const links = await e.listGuestLinks(sql, host);
     expect(links).toHaveLength(25);
@@ -364,5 +364,42 @@ describe("choosing a date together", () => {
     expect(await code(e.voteDates(sql, a.sessions[1], [optB.id]))).toBe("not_found");
     expect(await code(e.chooseDate(sql, a.host, optB.id))).toBe("not_found");
     expect((await e.datePoll(sql, b.host))[0].voters).toEqual([]);
+  });
+});
+
+describe("guests bringing guests", () => {
+  it("lets a guest add someone, see only that person's link, and keeps emails private", async () => {
+    const { sessions, tokens, host } = await makeParty(sql, 2);
+    const [, wife, other] = sessions;
+    const { id, token } = await e.addGuest(sql, wife, { name: "Her Husband" });
+    const husband = await e.sessionFromToken(sql, token);
+    expect(husband.guest).toMatchObject({ id, name: "Her Husband", is_host: false });
+
+    expect((await e.myInvites(sql, wife)).map((g) => g.name)).toEqual(["Her Husband"]);
+    expect(await e.myInvites(sql, other)).toEqual([]);                 // not her invite, not her link
+    expect(await code(e.listGuestLinks(sql, wife))).toBe("forbidden"); // still no access to everyone's links
+    expect(await code(e.removeGuest(sql, wife, other.guest.id))).toBe("forbidden");
+    const hostView = await e.listGuestLinks(sql, host);
+    expect(hostView.find((g) => g.id === id)?.invitedBy).toBe("Guest 1");
+    await e.removeGuest(sql, host, id);                                 // the host can undo it
+    expect(await code(e.sessionFromToken(sql, token))).toBe("bad_token");
+
+    await e.setMyEmail(sql, wife, "  Wife@Example.com ");
+    await expect(e.setMyEmail(sql, wife, "not-an-email")).rejects.toThrow();
+    expect((await fresh(sql, tokens[1])).guest.email).toBe("wife@example.com");
+    const treeForOther = JSON.stringify(await e.treeView(sql, other));
+    expect(treeForOther).not.toContain("wife@example.com");            // other guests never see it
+    expect((await e.listGuestLinks(sql, host)).find((g) => g.id === wife.guest.id)?.email).toBe("wife@example.com");
+    await e.setMyEmail(sql, wife, "");
+    expect((await fresh(sql, tokens[1])).guest.email).toBeNull();
+  });
+
+  it("stops guests adding people once Secret Santa names are drawn or the party is open", async () => {
+    const a = await makeParty(sql, 3, "secret_santa");
+    await e.drawNames(sql, a.host);
+    expect(await code(e.addGuest(sql, await fresh(sql, a.tokens[1]), { name: "Late" }))).toBe("invalid");
+    const b = await makeParty(sql, 1);
+    await e.openParty(sql, b.host);
+    expect(await code(e.addGuest(sql, await fresh(sql, b.tokens[1]), { name: "Late" }))).toBe("invalid");
   });
 });
