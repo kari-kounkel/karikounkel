@@ -107,7 +107,7 @@ export default function TreePage() {
   const recipients =
     party.exchangeMode === "secret_santa" ? (tree.assignment ? [tree.assignment] : []) : guests.filter((g) => g.id !== me.id);
   const wrappedByMe = given.filter((g) => g.status === "wrapped").length;
-  const when = party.partyAt ? new Date(party.partyAt).toLocaleString([], { dateStyle: "long", timeStyle: "short" }) : null;
+  const when = party.partyAt ? new Date(party.partyAt).toLocaleString([], { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" }) : null;
   const total = tree.presents.length;
 
   const startGift = async (recipientId: string) => {
@@ -339,7 +339,10 @@ function GuestExtras({ token, tree, refresh }: { token: string; tree: Tree; refr
 
 // ---------------------------------------------------------------- choosing a date together
 
-const fmtDate = (iso: string) => new Date(iso).toLocaleString([], { weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" });
+// Every time is shown in the viewer's own time zone, and says which zone that is.
+const fmtDate = (iso: string) => new Date(iso).toLocaleString([], { weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
+/** The viewer's time zone in words, e.g. "Central Standard Time". */
+const myZone = () => new Intl.DateTimeFormat([], { timeZoneName: "long" }).formatToParts(new Date()).find((p) => p.type === "timeZoneName")?.value ?? "your local time";
 
 function DateVote({ token, tree, refresh }: { token: string; tree: Tree; refresh: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);
@@ -356,7 +359,7 @@ function DateVote({ token, tree, refresh }: { token: string; tree: Tree; refresh
   return (
     <section className="sec" id="dates">
       <h2>When should we celebrate?</h2>
-      <p>Tap every date you can make. You can change your answer any time before {tree.guests.find((g) => g.isHost)?.name ?? "the host"} decides.</p>
+      <p>Tap every date you can make. Times are shown in your time zone ({myZone()}). You can change your answer any time before {tree.guests.find((g) => g.isHost)?.name ?? "the host"} decides.</p>
       <ul className="dates">
         {tree.datePoll.map((o) => (
           <li key={o.id} className={o.mine ? "yes" : ""}>
@@ -706,7 +709,7 @@ function HostPanel({ token, tree, refresh }: { token: string; tree: Tree; refres
         <div className="inner">
           <h3>Your party</h3>
           <label className="field">Party name<input value={form.name} maxLength={80} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-          <label className="field">When is the party?<input type="datetime-local" value={form.party_at} disabled={opened} onChange={(e) => setForm({ ...form, party_at: e.target.value })} /></label>
+          <label className="field">When is the party?<span className="hint">Enter it in your own time, {myZone()}. Each guest sees it converted to theirs.</span><input type="datetime-local" value={form.party_at} disabled={opened} onChange={(e) => setForm({ ...form, party_at: e.target.value })} /></label>
           <label className="field">Your Google Meet link<span className="hint">Create the meeting in your own Google account and paste its link.</span>
             <input value={form.meet_url} placeholder="https://meet.google.com/abc-defg-hij" onChange={(e) => setForm({ ...form, meet_url: e.target.value })} /></label>
           <label className="field">Exchange type
@@ -774,6 +777,7 @@ function ProposeDates({ token, tree, run }: { token: string; tree: Tree; run: (f
     <>
       <h3>Not sure of the date? Let everyone vote</h3>
       <p className="muted">Offer up to three dates. Your guests tap the ones they can make, and you choose the winner.</p>
+      <p className="muted">Enter times in your own time, {myZone()}. Each guest sees them converted to their own time zone, so 6:00 PM Central shows as 7:00 PM for someone in Eastern.</p>
       {dates.map((d, i) => (
         <label className="field" key={i}>Option {i + 1}
           <input type="datetime-local" value={d} onChange={(e) => setDates(dates.map((x, j) => (j === i ? e.target.value : x)))} />
