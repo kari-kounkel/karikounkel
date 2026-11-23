@@ -31,6 +31,13 @@ const Art = ({ wrap, className }: { wrap: string; className?: string }) => (
   <img className={className} src={giftArt(wrap)} alt="" />
 );
 
+/** Rooms a host can choose. Each is its own artwork (a tall picture for phones, a wide one for computers). */
+const ROOMS = [
+  { id: "classic", name: "Traditional Christmas", blurb: "Fireplace, lush green tree, warm lights" },
+  { id: "snowy", name: "Winter Wonderland", blurb: "White tree, silver and icy blue, snow at the windows" },
+] as const;
+const roomClass = (theme: string) => `theme-${ROOMS.some((r) => r.id === theme) ? theme : "classic"}`;
+
 const MODE_LABEL = { everyone: "Everyone gives to everyone", secret_santa: "Secret Santa", open: "Open gifting" };
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
@@ -141,7 +148,7 @@ export default function TreePage() {
     : `${plural(total, "present")} under the tree${forMe.length ? ` · ${forMe.length} for you` : ""}`;
 
   return (
-    <div className={`pt ${opened ? "opened" : ""}`}>
+    <div className={`pt ${roomClass(party.theme)} ${opened ? "opened" : ""}`}>
       <section className="room" aria-label="The Christmas living room">
         <div className="glow" />
         <header className="title">
@@ -834,6 +841,20 @@ function HostPanel({ token, tree, refresh }: { token: string; tree: Tree; refres
       <details className="host" open={toolsOpen} onToggle={(e) => setToolsOpen(e.currentTarget.open)}>
         <summary>Host tools: party details and guests</summary>
         <div className="inner">
+          <h3>Choose your room</h3>
+          <p className="muted">Tap a room to try it on. Everyone at your party sees the room you choose, and you can change it any time. Presents, guests and messages are not affected.</p>
+          <div className="rooms" role="radiogroup" aria-label="Room">
+            {ROOMS.map((r) => (
+              <button key={r.id} role="radio" aria-checked={party.theme === r.id || (r.id === "classic" && !ROOMS.some((x) => x.id === party.theme))}
+                className={party.theme === r.id ? "on" : ""} onClick={() => run(() => api(token, "updateParty", { settings: { theme: r.id } }))}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={`/christmas/room-${r.id === "classic" ? "" : r.id + "-"}wide.jpg`} alt="" loading="lazy" />
+                <span className="who">{r.name}</span>
+                <span className="muted">{r.blurb}</span>
+              </button>
+            ))}
+          </div>
+
           <h3>Your party</h3>
           <label className="field">Party name<input value={form.name} maxLength={80} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
           <label className="field">When is the party?<span className="hint">Enter it in your own time, {myZone()}. Each guest sees it converted to theirs.</span><input type="datetime-local" value={form.party_at} disabled={opened} onChange={(e) => setForm({ ...form, party_at: e.target.value })} /></label>
