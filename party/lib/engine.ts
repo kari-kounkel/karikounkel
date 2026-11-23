@@ -1,0 +1,562 @@
+/**
+ * The party engine: every rule about who may see or change what lives here.
+ * Functions take a `sql` client so the same code runs against production and the test database.
+ * Occasion-neutral — Christmas is a theme, not a special case.
+ */
+import type { Sql } from "postgres";
+import { z } from "zod";
+import { decryptToken, drawCycle, encryptToken, hashToken, newToken } from "./secrets";
+
+export const MAX_GUESTS = 25;
+export const MAX_PHOTOS_PER_GIFT = 3;
+export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+export const PHOTO_MIMES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
+export const OPEN_MODE_GIFTS_PER_PAIR = 3;
+export const RETENTION_DAYS = 30;
+/** A party with no date yet still expires: this long after purchase. */
+export const UNDATED_LIFETIME_DAYS = 90;
+
+export const WRAPS = ["red", "green", "gold", "snow", "plaid", "stars", "candy", "kraft"] as const;
+export const BOWS = ["gold", "red", "silver", "green", "white"] as const;
+export const THEMES = ["classic", "snowy", "cozy"] as const;
+export const REACTIONS = ["❤️", "😂", "😭", "🥹", "🎉", "🙏"] as const;
+
+export class AppError extends Error {
+  constructor(
+    public status: number,
+    public code: string,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+const deny = (message = "Not allowed") => new AppError(403, "forbidden", message);
+const bad = (message: string) => new AppError(400, "invalid", message);
+const missing = (message = "Not found") => new AppError(404, "not_found", message);
+
+export type Party = {
+  id: string;
+  occasion: string;
+  name: string;
+  theme: string;
+  exchange_mode: "everyone" | "secret_santa" | "open";
+  party_at: Date | null;
+  meet_url: string | null;
+  status: "active" | "opened";
+  drawn_at: Date | null;
+  opened_at: Date | null;
+  expires_at: Date;
+  is_demo: boolean;
+};
+export type Guest = { id: string; party_id: string; name: string; email: string | null; is_host: boolean };
+export type Session = { guest: Guest; party: Party };
+
+// ---------- validation ----------
+
+const httpsUrl = z
+  .string()
+  .trim()
+  .max(500)
+  .refine((u) => {
+    try {
+      return new URL(u).protocol === "https:";
+    } catch {
+      return false;
+    }
+  }, "Links must start with https://");
+
+const YOUTUBE_HOSTS = ["www.youtube.com", "youtube.com", "m.youtube.com", "youtu.be", "music.youtube.com"];
+
+export const linkSchema = z
+  .object({
+    kind: z.enum(["youtube", "music", "purchase", "giftcard", "other"]),
+    url: httpsUrl,
+    label: z.string().trim().max(80).default(""),
+  })
+  .refine((l) => l.kind !== "youtube" || YOUTUBE_HOSTS.includes(new URL(l.url).hostname), {
+    message: "That does not look like a YouTube link",
+  });
+
+export const giftContentSchema = z.object({
+  wrap: z.enum(WRAPS).optional(),
+  bow: z.enum(BOWS).optional(),
+  title: z.string().trim().max(80).optional(),
+  message: z.string().max(5000).optional(),
+  coupon: z.string().trim().max(300).optional(),
+  links: z.array(linkSchema).max(5).optional(),
+});
+export type GiftContent = z.infer<typeof giftContentSchema>;
+
+export const partySettingsSchema = z.object({
+  name: z.string().trim().min(1).max(80).optional(),
+  theme: z.enum(THEMES).optional(),
+  exchange_mode: z.enum(["everyone", "secret_santa", "open"]).optional(),
+  party_at: z.coerce.date().nullable().optional(),
+  meet_url: z
+    .union([
+      httpsUrl.refine((u) => new URL(u).hostname === "meet.google.com", "Paste a Google Meet link (meet.google.com/…)"),
+      z.literal(""),
+    ])
+    .nullable()
+    .optional(),
+});
+
+const nameSchema = z.string().trim().min(1, "Name is required").max(40);
+const emailSchema = z.string().trim().toLowerCase().email().max(200);
+
+function expiryFor(partyAt: Date | null, from = new Date()): Date {
+  const base = partyAt ?? new Date(from.getTime() + (UNDATED_LIFETIME_DAYS - RETENTION_DAYS) * 86400_000);
+  return new Date(base.getTime() + RETENTION_DAYS * 86400_000);
+}
+
+// ---------- sessions ----------
+
+export async function sessionFromToken(sql: Sql, token: string | null | undefined): Promise<Session> {
+  if (!token || token.length < 20 || token.length > 100) throw new AppError(401, "no_token", "Invitation link required");
+  const rows = await sql`
+    select g.id, g.party_id, g.name, g.email, g.is_host, row_to_json(p) as party
+    from guests g join parties p on p.id = g.party_id
+    where g.token_hash = ${hashToken(token)} and p.expires_at > now()`;
+  if (!rows.length) throw new AppError(401, "bad_token", "This invitation link is not valid, or the party has ended");
+  const { party, ...guest } = rows[0] as unknown as Guest & { party: Record<string, unknown> };
+  await sql`update guests set first_seen_at = now() where id = ${guest.id} and first_seen_at is null`;
+  return { guest, party: reviveParty(party) };
+}
+
+function reviveParty(p: Record<string, unknown>): Party {
+  const d = (v: unknown) => (v ? new Date(v as string) : null);
+  return {
+    ...(p as unknown as Party),
+    party_at: d(p.party_at),
+    drawn_at: d(p.drawn_at),
+    opened_at: d(p.opened_at),
+    expires_at: new Date(p.expires_at as string),
+  };
+}
+
+// ---------- party creation & settings ----------
+
+export async function createParty(
+  sql: Sql,
+  input: { hostName: string; hostEmail?: string | null; name?: string; isDemo?: boolean; occasion?: string },
+): Promise<{ partyId: string; hostToken: string; hostGuestId: string }> {
+  const hostName = nameSchema.parse(input.hostName);
+  const token = newToken();
+  const [party] = await sql`
+    insert into parties (occasion, name, expires_at, is_demo)
+    values (${input.occasion ?? "christmas"}, ${input.name ?? `${hostName}'s Christmas Together`}, ${expiryFor(null)}, ${input.isDemo ?? false})
+    returning id`;
+  const [host] = await sql`
+    insert into guests (party_id, name, email, is_host, token_hash, token_enc)
+    values (${party.id}, ${hostName}, ${input.hostEmail ?? null}, true, ${hashToken(token)}, ${encryptToken(token)})
+    returning id`;
+  return { partyId: party.id, hostToken: token, hostGuestId: host.id };
+}
+
+export async function updateParty(sql: Sql, s: Session, raw: unknown): Promise<void> {
+  if (!s.guest.is_host) throw deny("Only the host can change party settings");
+  const input = partySettingsSchema.parse(raw);
+  if (input.exchange_mode && input.exchange_mode !== s.party.exchange_mode) {
+    const [{ n }] = await sql`select count(*)::int as n from gifts where party_id = ${s.party.id}`;
+    if (n > 0 || s.party.drawn_at) throw bad("The exchange type cannot change once gifts exist or names are drawn");
+  }
+  if (s.party.status === "opened" && input.party_at !== undefined) throw bad("The party has already been opened");
+  const partyAt = input.party_at === undefined ? s.party.party_at : input.party_at;
+  await sql`
+    update parties set
+      name = ${input.name ?? s.party.name},
+      theme = ${input.theme ?? s.party.theme},
+      exchange_mode = ${input.exchange_mode ?? s.party.exchange_mode},
+      party_at = ${partyAt},
+      meet_url = ${input.meet_url === undefined ? s.party.meet_url : input.meet_url || null},
+      expires_at = ${s.party.status === "opened" ? s.party.expires_at : expiryFor(partyAt)}
+    where id = ${s.party.id}`;
+}
+
+// ---------- guests ----------
+
+export async function addGuest(
+  sql: Sql,
+  s: Session,
+  raw: { name: unknown; email?: unknown },
+): Promise<{ id: string; token: string }> {
+  if (!s.guest.is_host) throw deny("Only the host can invite guests");
+  if (s.party.drawn_at) throw bad("Names are already drawn, so the guest list is locked");
+  const name = nameSchema.parse(raw.name);
+  const email = raw.email ? emailSchema.parse(raw.email) : null;
+  const token = newToken();
+  return await sql.begin(async (tx) => {
+    await tx`select id from parties where id = ${s.party.id} for no key update`;
+    const [{ n }] = await tx`select count(*)::int as n from guests where party_id = ${s.party.id}`;
+    if (n >= MAX_GUESTS) throw bad(`A party holds up to ${MAX_GUESTS} people`);
+    const [g] = await tx`
+      insert into guests (party_id, name, email, token_hash, token_enc)
+      values (${s.party.id}, ${name}, ${email}, ${hashToken(token)}, ${encryptToken(token)})
+      returning id`;
+    return { id: g.id as string, token };
+  });
+}
+
+export async function removeGuest(sql: Sql, s: Session, guestId: string): Promise<void> {
+  if (!s.guest.is_host) throw deny();
+  if (s.party.drawn_at) throw bad("Names are already drawn, so the guest list is locked");
+  if (guestId === s.guest.id) throw bad("The host cannot be removed");
+  const res = await sql`delete from guests where id = ${guestId} and party_id = ${s.party.id} and not is_host`;
+  if (!res.count) throw missing();
+}
+
+/** Host-only: the guest list with each personal link secret, for copying and sending. */
+export async function listGuestLinks(sql: Sql, s: Session) {
+  if (!s.guest.is_host) throw deny();
+  const rows = await sql`
+    select id, name, email, is_host, token_enc, first_seen_at from guests
+    where party_id = ${s.party.id} order by created_at`;
+  return rows.map((r) => ({
+    id: r.id as string,
+    name: r.name as string,
+    email: r.email as string | null,
+    isHost: r.is_host as boolean,
+    hasVisited: !!r.first_seen_at,
+    token: decryptToken(r.token_enc),
+  }));
+}
+
+// ---------- Secret Santa ----------
+
+export async function drawNames(sql: Sql, s: Session): Promise<void> {
+  if (!s.guest.is_host) throw deny("Only the host can draw names");
+  if (s.party.exchange_mode !== "secret_santa") throw bad("This party is not a Secret Santa");
+  await sql.begin(async (tx) => {
+    const [p] = await tx`select drawn_at from parties where id = ${s.party.id} for no key update`;
+    if (p.drawn_at) throw bad("Names have already been drawn");
+    const guests = await tx`select id from guests where party_id = ${s.party.id}`;
+    if (guests.length < 3) throw bad("Secret Santa needs at least 3 people");
+    const pairs = drawCycle(guests.map((g) => g.id as string));
+    await tx`insert into assignments ${tx(pairs.map(([giver_id, recipient_id]) => ({ party_id: s.party.id, giver_id, recipient_id })))}`;
+    await tx`update parties set drawn_at = now() where id = ${s.party.id}`;
+  });
+}
+
+/** A guest's own assignment only. Nobody — host included — can read anyone else's. */
+export async function myAssignment(sql: Sql, s: Session): Promise<{ id: string; name: string } | null> {
+  const rows = await sql`
+    select g.id, g.name from assignments a join guests g on g.id = a.recipient_id
+    where a.party_id = ${s.party.id} and a.giver_id = ${s.guest.id}`;
+  return rows.length ? { id: rows[0].id, name: rows[0].name } : null;
+}
+
+// ---------- gifts ----------
+
+async function assertMayGive(sql: Sql, s: Session, recipientId: string): Promise<void> {
+  if (recipientId === s.guest.id) throw bad("You cannot give a gift to yourself");
+  const [r] = await sql`select id from guests where id = ${recipientId} and party_id = ${s.party.id}`;
+  if (!r) throw missing("That guest is not at this party");
+  if (s.party.exchange_mode === "secret_santa") {
+    const mine = await myAssignment(sql, s);
+    if (!mine) throw bad("Names have not been drawn yet");
+    if (mine.id !== recipientId) throw deny("That is not the person you drew");
+  }
+}
+
+export async function createGift(sql: Sql, s: Session, recipientId: string, raw: unknown = {}): Promise<string> {
+  const content = giftContentSchema.parse(raw);
+  await assertMayGive(sql, s, recipientId);
+  return await sql.begin(async (tx) => {
+    await tx`select id from guests where id = ${s.guest.id} for no key update`;
+    const [{ n }] = await tx`
+      select count(*)::int as n from gifts where giver_id = ${s.guest.id} and recipient_id = ${recipientId}`;
+    const limit = s.party.exchange_mode === "open" ? OPEN_MODE_GIFTS_PER_PAIR : 1;
+    if (n >= limit) throw bad(limit === 1 ? "You already have a gift for this person" : `Up to ${limit} gifts per person`);
+    const [g] = await tx`
+      insert into gifts (party_id, giver_id, recipient_id, wrap, bow, title, message, coupon, links)
+      values (${s.party.id}, ${s.guest.id}, ${recipientId}, ${content.wrap ?? "red"}, ${content.bow ?? "gold"},
+              ${content.title ?? ""}, ${content.message ?? ""}, ${content.coupon ?? ""}, ${tx.json(content.links ?? [])})
+      returning id`;
+    return g.id as string;
+  });
+}
+
+async function ownGift(sql: Sql, s: Session, giftId: string) {
+  const [g] = await sql`select * from gifts where id = ${giftId} and party_id = ${s.party.id} and giver_id = ${s.guest.id}`;
+  if (!g) throw missing("Gift not found");
+  return g;
+}
+
+/** Autosave: applies only the fields provided. Works on drafts and on wrapped gifts until the party opens. */
+export async function saveGift(sql: Sql, s: Session, giftId: string, raw: unknown): Promise<void> {
+  const c = giftContentSchema.parse(raw);
+  const g = await ownGift(sql, s, giftId);
+  if (g.status === "wrapped" && s.party.status === "opened") throw bad("This gift has already been opened");
+  await sql`
+    update gifts set
+      wrap = ${c.wrap ?? g.wrap}, bow = ${c.bow ?? g.bow}, title = ${c.title ?? g.title},
+      message = ${c.message ?? g.message}, coupon = ${c.coupon ?? g.coupon},
+      links = ${c.links === undefined ? sql.json(g.links) : sql.json(c.links)}, updated_at = now()
+    where id = ${giftId}`;
+}
+
+export async function wrapGift(sql: Sql, s: Session, giftId: string): Promise<void> {
+  const g = await ownGift(sql, s, giftId);
+  const [{ n }] = await sql`select count(*)::int as n from gift_photos where gift_id = ${giftId} and confirmed`;
+  const empty = !g.message.trim() && !g.coupon.trim() && !(g.links as unknown[]).length && n === 0;
+  if (empty) throw bad("Add a message, a photo, or a link before wrapping");
+  await sql`update gifts set status = 'wrapped', wrapped_at = coalesce(wrapped_at, now()), updated_at = now() where id = ${giftId}`;
+}
+
+export async function unwrapGift(sql: Sql, s: Session, giftId: string): Promise<void> {
+  await ownGift(sql, s, giftId);
+  if (s.party.status === "opened") throw bad("The party has already been opened");
+  await sql`update gifts set status = 'draft', updated_at = now() where id = ${giftId}`;
+}
+
+export async function deleteGift(sql: Sql, s: Session, giftId: string): Promise<string[]> {
+  const g = await ownGift(sql, s, giftId);
+  if (g.status === "wrapped" && s.party.status === "opened") throw bad("This gift has already been opened");
+  const photos = await sql`select path from gift_photos where gift_id = ${giftId}`;
+  await sql`delete from gifts where id = ${giftId}`;
+  return photos.map((p) => p.path as string); // caller removes these from storage
+}
+
+// ---------- photos (metadata; bytes live in private storage) ----------
+
+export async function reservePhoto(
+  sql: Sql,
+  s: Session,
+  giftId: string,
+  input: { mime: string; sizeBytes: number },
+): Promise<{ id: string; path: string }> {
+  const g = await ownGift(sql, s, giftId);
+  if (g.status === "wrapped" && s.party.status === "opened") throw bad("This gift has already been opened");
+  if (!(PHOTO_MIMES as readonly string[]).includes(input.mime)) throw bad("Photos must be JPG, PNG, WebP, or GIF");
+  if (!Number.isInteger(input.sizeBytes) || input.sizeBytes <= 0) throw bad("Empty file");
+  if (input.sizeBytes > MAX_PHOTO_BYTES) throw bad("Each photo can be up to 5 MB");
+  return await sql.begin(async (tx) => {
+    await tx`select id from gifts where id = ${giftId} for no key update`;
+    // Unconfirmed reservations older than an hour are abandoned uploads; they stop counting.
+    const [{ n }] = await tx`
+      select count(*)::int as n from gift_photos
+      where gift_id = ${giftId} and (confirmed or created_at > now() - interval '1 hour')`;
+    if (n >= MAX_PHOTOS_PER_GIFT) throw bad(`Up to ${MAX_PHOTOS_PER_GIFT} photos per gift`);
+    const ext = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif" }[input.mime];
+    const [row] = await tx`
+      insert into gift_photos (party_id, gift_id, path, mime, size_bytes)
+      values (${s.party.id}, ${giftId}, ${`${s.party.id}/${giftId}/` + crypto.randomUUID() + `.${ext}`}, ${input.mime}, ${input.sizeBytes})
+      returning id, path`;
+    return { id: row.id as string, path: row.path as string };
+  });
+}
+
+export async function confirmPhoto(sql: Sql, s: Session, photoId: string, actualBytes: number): Promise<void> {
+  const [p] = await sql`
+    select ph.id, ph.gift_id from gift_photos ph join gifts g on g.id = ph.gift_id
+    where ph.id = ${photoId} and g.giver_id = ${s.guest.id} and ph.party_id = ${s.party.id}`;
+  if (!p) throw missing("Photo not found");
+  if (actualBytes <= 0 || actualBytes > MAX_PHOTO_BYTES) {
+    await sql`delete from gift_photos where id = ${photoId}`;
+    throw bad("Each photo can be up to 5 MB");
+  }
+  await sql`update gift_photos set confirmed = true, size_bytes = ${actualBytes} where id = ${photoId}`;
+}
+
+export async function removePhoto(sql: Sql, s: Session, photoId: string): Promise<string> {
+  const [p] = await sql`
+    select ph.path, g.status from gift_photos ph join gifts g on g.id = ph.gift_id
+    where ph.id = ${photoId} and g.giver_id = ${s.guest.id} and ph.party_id = ${s.party.id}`;
+  if (!p) throw missing("Photo not found");
+  if (p.status === "wrapped" && s.party.status === "opened") throw bad("This gift has already been opened");
+  await sql`delete from gift_photos where id = ${photoId}`;
+  return p.path as string;
+}
+
+// ---------- reading ----------
+
+export type GiftFull = {
+  id: string;
+  giverId: string;
+  giverName: string;
+  recipientId: string;
+  recipientName: string;
+  status: "draft" | "wrapped";
+  wrap: string;
+  bow: string;
+  title: string;
+  message: string;
+  coupon: string;
+  links: Array<{ kind: string; url: string; label: string }>;
+  photos: Array<{ id: string; path: string }>;
+  updatedAt: Date;
+};
+
+async function loadFull(sql: Sql, where: ReturnType<Sql>): Promise<GiftFull[]> {
+  const rows = await sql`
+    select g.*, gv.name as giver_name, rc.name as recipient_name,
+      coalesce((select json_agg(json_build_object('id', ph.id, 'path', ph.path) order by ph.created_at)
+                from gift_photos ph where ph.gift_id = g.id and ph.confirmed), '[]'::json) as photos
+    from gifts g join guests gv on gv.id = g.giver_id join guests rc on rc.id = g.recipient_id
+    where ${where} order by g.created_at`;
+  return rows.map((r) => ({
+    id: r.id,
+    giverId: r.giver_id,
+    giverName: r.giver_name,
+    recipientId: r.recipient_id,
+    recipientName: r.recipient_name,
+    status: r.status,
+    wrap: r.wrap,
+    bow: r.bow,
+    title: r.title,
+    message: r.message,
+    coupon: r.coupon,
+    links: r.links,
+    photos: r.photos,
+    updatedAt: r.updated_at,
+  }));
+}
+
+/** Gifts I am giving — drafts included, always in full. */
+export function myGivenGifts(sql: Sql, s: Session): Promise<GiftFull[]> {
+  return loadFull(sql, sql`g.party_id = ${s.party.id} and g.giver_id = ${s.guest.id}`);
+}
+
+/** Gifts given to me — contents exist only after the host opens the party. Before that: an empty list. */
+export async function myReceivedGifts(sql: Sql, s: Session): Promise<GiftFull[]> {
+  const [p] = await sql`select status from parties where id = ${s.party.id}`;
+  if (p.status !== "opened") return [];
+  return loadFull(sql, sql`g.party_id = ${s.party.id} and g.recipient_id = ${s.guest.id} and g.status = 'wrapped'`);
+}
+
+/** One gift, for either party to it. The recipient gets it only once opened. */
+export async function getGift(sql: Sql, s: Session, giftId: string): Promise<GiftFull> {
+  const [g] = await loadFull(sql, sql`g.party_id = ${s.party.id} and g.id = ${giftId}`);
+  if (!g) throw missing("Gift not found");
+  if (g.giverId === s.guest.id) return g;
+  const [p] = await sql`select status from parties where id = ${s.party.id}`;
+  if (g.recipientId === s.guest.id && g.status === "wrapped" && p.status === "opened") return g;
+  throw missing("Gift not found");
+}
+
+/**
+ * What everyone at the party sees under the tree: wrapped boxes and name tags. Never contents.
+ * In a Secret Santa the "from" tag stays blank until the party opens.
+ */
+export async function treeView(sql: Sql, s: Session) {
+  const [p] = await sql`select * from parties where id = ${s.party.id}`;
+  const party = reviveParty(p);
+  const guests = await sql`select id, name, is_host from guests where party_id = ${party.id} order by created_at`;
+  const presents = await sql`
+    select g.id, g.wrap, g.bow, g.giver_id, g.recipient_id from gifts g
+    where g.party_id = ${party.id} and g.status = 'wrapped' order by g.wrapped_at`;
+  const hideFrom = party.exchange_mode === "secret_santa" && party.status !== "opened";
+  return {
+    party: {
+      id: party.id,
+      occasion: party.occasion,
+      name: party.name,
+      theme: party.theme,
+      exchangeMode: party.exchange_mode,
+      partyAt: party.party_at,
+      meetUrl: party.meet_url,
+      status: party.status,
+      namesDrawn: !!party.drawn_at,
+      openedAt: party.opened_at,
+      expiresAt: party.expires_at,
+      isDemo: party.is_demo,
+    },
+    me: { id: s.guest.id, name: s.guest.name, isHost: s.guest.is_host },
+    guests: guests.map((g) => ({ id: g.id as string, name: g.name as string, isHost: g.is_host as boolean })),
+    presents: presents.map((g) => ({
+      id: g.id as string,
+      wrap: g.wrap as string,
+      bow: g.bow as string,
+      toId: g.recipient_id as string,
+      fromId: hideFrom && g.giver_id !== s.guest.id ? null : (g.giver_id as string),
+    })),
+  };
+}
+
+// ---------- the big moment ----------
+
+export async function openParty(sql: Sql, s: Session): Promise<void> {
+  if (!s.guest.is_host) throw deny("Only the host can open the presents");
+  const res = await sql`
+    update parties set status = 'opened', opened_at = now(),
+      expires_at = greatest(now(), coalesce(party_at, now())) + make_interval(days => ${RETENTION_DAYS})
+    where id = ${s.party.id} and status = 'active'`;
+  if (!res.count) throw bad("The presents are already open");
+}
+
+// ---------- thank-yous ----------
+
+async function giftThreadAccess(sql: Sql, s: Session, giftId: string) {
+  const [g] = await sql`
+    select g.giver_id, g.recipient_id, g.status, p.status as party_status
+    from gifts g join parties p on p.id = g.party_id
+    where g.id = ${giftId} and g.party_id = ${s.party.id}`;
+  const isParty = g && (g.giver_id === s.guest.id || g.recipient_id === s.guest.id);
+  if (!isParty || g.status !== "wrapped" || g.party_status !== "opened") throw missing("Gift not found");
+}
+
+export async function postThanks(
+  sql: Sql,
+  s: Session,
+  giftId: string,
+  raw: { body?: unknown; reaction?: unknown },
+): Promise<string> {
+  const input = z
+    .object({ body: z.string().trim().max(2000).default(""), reaction: z.enum(REACTIONS).nullish() })
+    .refine((v) => v.body || v.reaction, "Write something or pick a reaction")
+    .parse(raw);
+  await giftThreadAccess(sql, s, giftId);
+  const [m] = await sql`
+    insert into gift_messages (party_id, gift_id, sender_id, body, reaction)
+    values (${s.party.id}, ${giftId}, ${s.guest.id}, ${input.body}, ${input.reaction ?? null}) returning id`;
+  return m.id as string;
+}
+
+export async function listThanks(sql: Sql, s: Session, giftId: string) {
+  await giftThreadAccess(sql, s, giftId);
+  const rows = await sql`
+    select m.id, m.sender_id, g.name as sender_name, m.body, m.reaction, m.created_at
+    from gift_messages m join guests g on g.id = m.sender_id
+    where m.gift_id = ${giftId} order by m.created_at`;
+  return rows.map((m) => ({
+    id: m.id as string,
+    senderId: m.sender_id as string,
+    senderName: m.sender_name as string,
+    body: m.body as string,
+    reaction: m.reaction as string | null,
+    createdAt: m.created_at as Date,
+  }));
+}
+
+// ---------- rate limiting ----------
+
+/** Fixed-window limiter backed by the database, so it holds across serverless instances. */
+export async function rateLimit(sql: Sql, key: string, max: number, windowSeconds: number): Promise<void> {
+  const [row] = await sql`
+    insert into rate_limits (key, window_start)
+    values (${key}, to_timestamp(floor(extract(epoch from now()) / ${windowSeconds}) * ${windowSeconds}))
+    on conflict (key, window_start) do update set count = rate_limits.count + 1
+    returning count`;
+  if (row.count > max) throw new AppError(429, "slow_down", "Too many requests — give it a moment");
+}
+
+// ---------- expiry ----------
+
+/** Deletes every expired party and returns the storage paths the caller must remove. */
+export async function purgeExpired(sql: Sql, now = new Date()): Promise<{ parties: number; paths: string[] }> {
+  return await sql.begin(async (tx) => {
+    const expired = await tx`select id from parties where expires_at <= ${now} for update skip locked`;
+    const paths: string[] = [];
+    for (const { id } of expired) {
+      const photos = await tx`select path from gift_photos where party_id = ${id}`;
+      paths.push(...photos.map((p) => p.path as string));
+      const [c] = await tx`
+        select (select count(*) from guests where party_id = ${id})::int as guests,
+               (select count(*) from gifts where party_id = ${id})::int as gifts`;
+      await tx`insert into deletion_log (party_id, guests, gifts, photos) values (${id}, ${c.guests}, ${c.gifts}, ${photos.length})`;
+      await tx`delete from parties where id = ${id}`;
+    }
+    await tx`delete from rate_limits where window_start < now() - interval '1 day'`;
+    return { parties: expired.length, paths };
+  });
+}
