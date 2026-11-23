@@ -36,6 +36,12 @@ export function useAskKari(site: string, user?: string | null, email?: string | 
       const name = document.getElementById("ak-sn") as HTMLInputElement | null;
       const mail = document.getElementById("ak-se") as HTMLInputElement | null;
       if (!name || !mail) return ++tries < 40;
+      // The widget's own wording is generic ("Need a hand?"). On this site only, say whose help desk it is.
+      const say = (sel: string, text: string) => { const el = document.querySelector(sel); if (el) el.textContent = text; };
+      say("#ak-title", "KCOCARES Help Desk");
+      say("#ak-sub", "Help with your Christmas party");
+      say("#ak-intro h3", "How can we help?");
+      say("#ak-intro p", "Tell us what’s going on. Your note goes straight to the KCOCARES help desk, and the answer comes back by email.");
       if (user) { name.value = user; document.body.classList.add("ak-has-name"); }
       if (email) { mail.value = email; document.body.classList.add("ak-has-email"); }
       return false;
