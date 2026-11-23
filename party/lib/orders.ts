@@ -4,6 +4,7 @@
  */
 import type { Sql } from "postgres";
 import { createParty, hubMessenger, type Messenger } from "./engine";
+import { capacityFrom } from "./pricing";
 import { decryptToken } from "./secrets";
 
 /** Marks our product on the Stripe payment link, so other products sold from the same Stripe account are ignored. */
@@ -40,7 +41,7 @@ export async function handleStripeEvent(sql: Sql, event: StripeEvent, send: Mess
       if (existing) return "duplicate";
 
       const hostName = (s.customer_details?.name || "Host").trim().split(/\s+/)[0].slice(0, 40) || "Host";
-      const { partyId, hostToken } = await createParty(tx as unknown as Sql, { hostName, hostEmail: s.customer_details?.email ?? null });
+      const { partyId, hostToken } = await createParty(tx as unknown as Sql, { hostName, hostEmail: s.customer_details?.email ?? null, capacity: capacityFrom(s.metadata?.capacity) });
       await tx`
         insert into orders (stripe_session_id, stripe_payment_intent, email, amount_total, currency, ref_code, party_id)
         values (${s.id}, ${s.payment_intent ?? null}, ${s.customer_details?.email ?? null}, ${s.amount_total ?? 0},

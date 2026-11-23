@@ -1,13 +1,26 @@
 /**
- * Prices and their Stripe checkout links, in one place.
- * To end the launch price early or extend it, change PROMO_ENDS. Both links are public addresses, not secrets.
+ * What is for sale, in one place. Checkout links are public addresses, not secrets.
+ *
+ * Only tiers listed in ON_SALE appear on the sales page. Larger parties and party packs are part of
+ * the price list but stay off sale until they have been built and load-tested.
  */
-export const PROMO = { dollars: 49, url: "https://buy.stripe.com/28E8wP0kTa9I8n1fGY18c0j" };
-export const REGULAR = { dollars: 69, url: "https://buy.stripe.com/dRmeVdebJ5TsfPt9iA18c0k" };
-/** The launch price applies until this moment (start of December 1, 2026, US Central). */
-export const PROMO_ENDS = "2026-12-01T00:00:00-06:00";
+export const PRICE_LIST = {
+  standard: { dollars: 19, label: "One party, up to 25 guests", capacity: 25 },
+  medium: { dollars: 29, label: "One party, 26 to 50 guests", capacity: 50 },
+  large: { dollars: 49, label: "One party, 51 to 100 guests", capacity: 100 },
+  pack3: { dollars: 49, label: "3-party pack", credits: 3 },
+  pack5: { dollars: 79, label: "5-party pack", credits: 5 },
+  pack10: { dollars: 149, label: "10-party pack", credits: 10 },
+} as const;
 
-export function currentOffer(now = new Date()) {
-  const promo = now < new Date(PROMO_ENDS);
-  return { ...(promo ? PROMO : REGULAR), promo, regularDollars: REGULAR.dollars };
+export const ON_SALE = {
+  standard: { ...PRICE_LIST.standard, url: "https://buy.stripe.com/3cIdR9aZxdlUeLp3Yg18c0l" },
+} as const;
+
+/** Party sizes the server will accept from a checkout. Anything else falls back to the standard size. */
+export const CAPACITIES = [25, 50, 100] as const;
+export const STANDARD_CAPACITY = 25;
+export function capacityFrom(value: unknown): number {
+  const n = Number(value);
+  return (CAPACITIES as readonly number[]).includes(n) ? n : STANDARD_CAPACITY;
 }

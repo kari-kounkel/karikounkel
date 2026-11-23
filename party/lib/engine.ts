@@ -7,6 +7,7 @@ import type { Sql } from "postgres";
 import { z } from "zod";
 import { decryptToken, drawCycle, encryptToken, hashToken, newToken } from "./secrets";
 
+/** The standard party size. A party's own limit lives on the party (parties.max_guests). */
 export const MAX_GUESTS = 25;
 export const MAX_PHOTOS_PER_GIFT = 3;
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
@@ -48,6 +49,7 @@ export type Party = {
   expires_at: Date;
   is_demo: boolean;
   cancelled_at: Date | null;
+  max_guests: number;
 };
 export type Guest = { id: string; party_id: string; name: string; email: string | null; is_host: boolean };
 export type Session = { guest: Guest; party: Party };
@@ -140,13 +142,13 @@ function reviveParty(p: Record<string, unknown>): Party {
 
 export async function createParty(
   sql: Sql,
-  input: { hostName: string; hostEmail?: string | null; name?: string; isDemo?: boolean; occasion?: string },
+  input: { hostName: string; hostEmail?: string | null; name?: string; isDemo?: boolean; occasion?: string; capacity?: number },
 ): Promise<{ partyId: string; hostToken: string; hostGuestId: string }> {
   const hostName = nameSchema.parse(input.hostName);
   const token = newToken();
   const [party] = await sql`
-    insert into parties (occasion, name, expires_at, is_demo)
-    values (${input.occasion ?? "christmas"}, ${input.name ?? `${hostName}'s Christmas Together`}, ${expiryFor(null)}, ${input.isDemo ?? false})
+    insert into parties (occasion, name, expires_at, is_demo, max_guests)
+    values (${input.occasion ?? "christmas"}, ${input.name ?? `${hostName}'s Christmas Together`}, ${expiryFor(null)}, ${input.isDemo ?? false}, ${input.capacity ?? MAX_GUESTS})
     returning id`;
   const [host] = await sql`
     insert into guests (party_id, name, email, is_host, token_hash, token_enc)
@@ -194,9 +196,10 @@ export async function addGuest(
   const email = raw.email ? emailSchema.parse(raw.email) : contact.email;
   const token = newToken();
   return await sql.begin(async (tx) => {
-    await tx`select id from parties where id = ${s.party.id} for no key update`;
+    // The limit is whatever this party was bought with, read fresh under lock.
+    const [{ max_guests: cap }] = await tx`select max_guests from parties where id = ${s.party.id} for no key update`;
     const [{ n }] = await tx`select count(*)::int as n from guests where party_id = ${s.party.id}`;
-    if (n >= MAX_GUESTS) throw bad(`A party holds up to ${MAX_GUESTS} people`);
+    if (n >= cap) throw bad(`This party holds up to ${cap} people`);
     const [g] = await tx`
       insert into guests (party_id, name, email, phone, token_hash, token_enc, invited_by)
       values (${s.party.id}, ${name}, ${email}, ${contact.phone}, ${hashToken(token)}, ${encryptToken(token)}, ${s.guest.is_host ? null : s.guest.id})
@@ -489,6 +492,7 @@ export async function treeView(sql: Sql, s: Session) {
       openedAt: party.opened_at,
       expiresAt: party.expires_at,
       isDemo: party.is_demo,
+      maxGuests: party.max_guests,
       cancelledAt: party.cancelled_at,
     },
     me: { id: s.guest.id, name: s.guest.name, isHost: s.guest.is_host, email: s.guest.email },

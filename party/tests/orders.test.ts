@@ -162,3 +162,20 @@ describe("receipts and the daily round", () => {
     expect(await e.sendExpiryReminders(sql, collect)).toBe(0);
   });
 });
+
+describe("party size", () => {
+  it("gives a purchase the size it paid for, and the server holds that line", async () => {
+    const big = paid({ metadata: { product: PRODUCT_TAG, capacity: "50" } });
+    await handleStripeEvent(sql, big, async () => {});
+    const host = await e.sessionFromToken(sql, await claimHostToken(sql, (big.data.object as { id: string }).id));
+    expect(host.party.max_guests).toBe(50);
+    for (let i = 1; i < 50; i++) await e.addGuest(sql, host, { name: `G${i}` });
+    await expect(e.addGuest(sql, host, { name: "Fifty-one" })).rejects.toThrow(/up to 50/);
+
+    // Nonsense or tampered sizes fall back to the standard party.
+    const odd = paid({ metadata: { product: PRODUCT_TAG, capacity: "100000" } });
+    await handleStripeEvent(sql, odd, async () => {});
+    const h2 = await e.sessionFromToken(sql, await claimHostToken(sql, (odd.data.object as { id: string }).id));
+    expect(h2.party.max_guests).toBe(25);
+  });
+});

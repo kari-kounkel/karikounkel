@@ -10,7 +10,7 @@ import "@fontsource/nunito-sans/latin-800.css";
 import "./tree/tree.css";
 import "./sales.css";
 
-import { PROMO_ENDS, currentOffer } from "@/lib/pricing";
+import { ON_SALE } from "@/lib/pricing";
 
 const FAQ: [string, string][] = [
   ["Do my guests need an account or an app?", "No. Each guest gets a personal link. They tap it and they are in, on a phone, tablet or computer."],
@@ -27,9 +27,7 @@ const FAQ: [string, string][] = [
 
 export default function ChristmasSales() {
   useAskKari();
-  // The page is pre-built, so "today" has to be read in the visitor's browser. Until then, show the
-  // offer as of the promotion's last moment; the effect below corrects it once the page is live.
-  const [offer, setOffer] = useState(() => currentOffer(new Date(new Date(PROMO_ENDS).getTime() - 1)));
+  const offer = ON_SALE.standard;
   const [open, setOpen] = useState<boolean | null>(null);
   const [hasTree, setHasTree] = useState(false);
   const [help, setHelp] = useState({ email: "", body: "", state: "" });
@@ -40,7 +38,6 @@ export default function ChristmasSales() {
     forward();
     window.addEventListener("hashchange", forward);
     setHasTree(!!localStorage.getItem("party-together-invite"));
-    setOffer(currentOffer());
     // The buy button only works once the site can verify payments.
     fetch("/api/health").then((r) => r.json()).then((h) => setOpen(!!h?.ok && !!h?.settings?.STRIPE_WEBHOOK_SECRET)).catch(() => setOpen(false));
     return () => window.removeEventListener("hashchange", forward);
@@ -66,7 +63,7 @@ export default function ChristmasSales() {
         <h1>Christmas Together. Even When You&rsquo;re Miles Apart.</h1>
         <p className="lede">One tree. A world of presents. Open them all at the same moment, wherever everyone is.</p>
         {cta}
-        <p className="fine">{`$${offer.dollars}${offer.promo ? " launch price" : ""}`} · one party · up to 25 people</p>
+        <p className="fine">{"$" + offer.dollars} · one party · up to 25 people</p>
         {hasTree && <p className="fine"><a href="/christmas/tree" style={{ color: "var(--gold)" }}>Go to my tree →</a></p>}
       </header>
 
@@ -116,8 +113,8 @@ export default function ChristmasSales() {
         <section>
           <h2>One price, one party</h2>
           <div className="price">
-            <div className="amount">{`$${offer.dollars}`}</div>
-            <p className="was">{offer.promo ? `Launch price. Regular price $${offer.regularDollars}.` : "One payment. No subscription."}</p>
+            <div className="amount">{"$" + offer.dollars}</div>
+            <p className="was">One payment. No subscription.</p>
             <ul>
               <li>One private Christmas tree</li>
               <li>Up to 25 people, no accounts needed</li>

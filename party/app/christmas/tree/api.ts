@@ -33,7 +33,7 @@ export async function api<T = Record<string, unknown>>(token: string, action: st
 export type Tree = {
   party: {
     name: string; theme: string; exchangeMode: "everyone" | "secret_santa" | "open"; partyAt: string | null;
-    meetUrl: string | null; status: "active" | "opened"; namesDrawn: boolean; expiresAt: string; cancelledAt: string | null;
+    meetUrl: string | null; status: "active" | "opened"; namesDrawn: boolean; expiresAt: string; cancelledAt: string | null; maxGuests: number;
   };
   me: { id: string; name: string; isHost: boolean; email: string | null };
   guests: { id: string; name: string; isHost: boolean }[];

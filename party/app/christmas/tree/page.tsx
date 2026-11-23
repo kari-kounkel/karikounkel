@@ -293,7 +293,7 @@ function GuestExtras({ token, tree, refresh }: { token: string; tree: Tree; refr
   const [error, setError] = useState("");
   const load = useCallback(async () => setMine((await api<{ guests: typeof mine }>(token, "myInvites")).guests), [token]);
   useEffect(() => { load().catch(() => {}); }, [load]);
-  const canBring = party.status !== "opened" && !party.namesDrawn && tree.guests.length < 25;
+  const canBring = party.status !== "opened" && !party.namesDrawn && tree.guests.length < party.maxGuests;
   const run = async (fn: () => Promise<unknown>) => {
     setError("");
     try { await fn(); await refresh(); await load(); } catch (e) { setError(e instanceof Error ? e.message : "Something went wrong"); }
@@ -725,7 +725,7 @@ function HostPanel({ token, tree, refresh }: { token: string; tree: Tree; refres
 
           {!opened && <ProposeDates token={token} tree={tree} run={run} />}
 
-          <h3>Guests ({tree.guests.length} of 25)</h3>
+          <h3>Guests ({tree.guests.length} of {party.maxGuests})</h3>
           <p className="muted">Each person gets a personal link. It is their key, so send one link per person. You only need a name; guests can add their own email, and can bring someone themselves.</p>
           <ul className="rows">
             {links.map((g) => (
@@ -742,7 +742,7 @@ function HostPanel({ token, tree, refresh }: { token: string; tree: Tree; refres
               </li>
             ))}
           </ul>
-          {!locked && tree.guests.length < 25 && (
+          {!locked && tree.guests.length < party.maxGuests && (
             <>
               <form className="row" style={{ marginTop: 14 }} onSubmit={(e) => { e.preventDefault(); if (name.trim()) run(async () => { await api(token, "addGuest", { name, contact }); setName(""); setContact(""); }); }}>
                 <input aria-label="Guest name" className="grow inline-input" style={{ width: "auto", marginTop: 0 }} value={name} maxLength={40} placeholder="Guest's name" onChange={(e) => setName(e.target.value)} />
