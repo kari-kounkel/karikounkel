@@ -152,6 +152,7 @@ export default function ChristmasSales() {
       <footer>
         <p>Christmas Together is part of Party Together, by Kari Kounkel.</p>
         <p>Your party and everything in it is deleted 30 days after the celebration.</p>
+        <p>Planning one for a team or a business? <a href="/business" style={{ color: "var(--gold)" }}>See the business page</a></p>
         <p><a href="/christmas/legal" style={{ color: "var(--gold)" }}>Terms, privacy and refunds</a></p>
         <Proprietary />
       </footer>

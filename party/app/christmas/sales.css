@@ -39,3 +39,9 @@
 .sell footer{margin-top:64px;padding:0 20px;text-align:center;font-size:15px;opacity:.75}
 @media (min-width:760px){.shots{grid-template-columns:repeat(3,1fr)}.trio{grid-template-columns:repeat(3,1fr)}
   .sell .hero{background:#1a0e08 url(/christmas/room-wide.jpg) center/cover no-repeat;aspect-ratio:auto;min-height:100vh}}
+
+/* Business page: the Secret Santa feature box */
+.santa{max-width:720px;margin:0 auto;padding:20px 22px;border-radius:20px;text-align:left;background:linear-gradient(160deg,rgba(163,24,43,.38),rgba(22,12,8,.7));border:2px solid var(--gold)}
+.santa ul{margin:0;padding:0;list-style:none}.santa li{padding:9px 0 9px 34px;position:relative;font-size:17px;line-height:1.5}
+.santa li::before{content:"🤫";position:absolute;left:0;top:9px}.santa b{color:var(--gold)}
+@media(min-width:760px){.trio.two{grid-template-columns:1fr 1fr;max-width:720px;margin-left:auto;margin-right:auto}}
