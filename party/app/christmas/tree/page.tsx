@@ -186,6 +186,9 @@ export default function TreePage() {
         </div>
       </section>
 
+      {party.cancelledAt && (
+        <div className="banner" role="status">This party was cancelled by the host. You can still read and save what is here until {new Date(party.expiresAt).toLocaleDateString([], { dateStyle: "long" })}.</div>
+      )}
       {opened && <div className="banner">🎄 The presents are open!</div>}
 
       <div className="below">

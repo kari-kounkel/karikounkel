@@ -104,6 +104,8 @@ export async function POST(req: Request) {
 
     const token = req.headers.get("authorization")?.replace(/^Bearer /, "");
     const s = await e.sessionFromToken(sql, token);
+    // A refunded party stays readable for a week so guests can save what they wrote, but nothing can change.
+    if (s.party.cancelled_at && !READS.has(action)) throw new e.AppError(403, "cancelled", "This party was cancelled by the host. You can still read and save what is here.");
     // Per-guest budgets: generous for reads (the tree polls), tighter for writes.
     await e.rateLimit(sql, `${READS.has(action) ? "r" : "w"}:${s.guest.id}`, READS.has(action) ? 240 : 120, 60);
 

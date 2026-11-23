@@ -1,0 +1,10 @@
+.legal main{max-width:720px;padding:28px 20px 40px}
+.legal .brand2{text-align:center;font-size:44px;color:#fff7e6;margin:0}
+.legal h1{text-shadow:none;font-size:clamp(28px,6vw,40px);text-align:center;max-width:none;margin:8px 0 0}
+.legal .muted{text-align:center}
+.legal nav{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:20px 0 0}
+.legal nav a{padding:8px 14px;border-radius:999px;font-weight:700;font-size:16px;color:#fff;text-decoration:none;border:1px solid rgba(243,211,143,.5)}
+.legal section{margin-top:44px}
+.legal h2{text-align:left;font-size:26px}
+.legal p{font-size:18px;line-height:1.6;margin:12px 0}
+.legal a{color:var(--gold)}

@@ -10,8 +10,7 @@ import "@fontsource/nunito-sans/latin-800.css";
 import "./tree/tree.css";
 import "./sales.css";
 
-/** Stripe-hosted checkout for the launch price. A public address, not a secret. */
-const CHECKOUT_URL = "https://buy.stripe.com/28E8wP0kTa9I8n1fGY18c0j";
+import { PROMO_ENDS, currentOffer } from "@/lib/pricing";
 
 const FAQ: [string, string][] = [
   ["Do my guests need an account or an app?", "No. Each guest gets a personal link. They tap it and they are in, on a phone, tablet or computer."],
@@ -28,6 +27,9 @@ const FAQ: [string, string][] = [
 
 export default function ChristmasSales() {
   useAskKari();
+  // The page is pre-built, so "today" has to be read in the visitor's browser. Until then, show the
+  // offer as of the promotion's last moment; the effect below corrects it once the page is live.
+  const [offer, setOffer] = useState(() => currentOffer(new Date(new Date(PROMO_ENDS).getTime() - 1)));
   const [open, setOpen] = useState<boolean | null>(null);
   const [hasTree, setHasTree] = useState(false);
   const [help, setHelp] = useState({ email: "", body: "", state: "" });
@@ -38,13 +40,14 @@ export default function ChristmasSales() {
     forward();
     window.addEventListener("hashchange", forward);
     setHasTree(!!localStorage.getItem("party-together-invite"));
+    setOffer(currentOffer());
     // The buy button only works once the site can verify payments.
     fetch("/api/health").then((r) => r.json()).then((h) => setOpen(!!h?.ok && !!h?.settings?.STRIPE_WEBHOOK_SECRET)).catch(() => setOpen(false));
     return () => window.removeEventListener("hashchange", forward);
   }, []);
 
   const cta =
-    open ? <a className="btn cta" href={CHECKOUT_URL}>CREATE YOUR CHRISTMAS TREE</a>
+    open ? <a className="btn cta" href={offer.url}>CREATE YOUR CHRISTMAS TREE</a>
       : <button className="btn cta" disabled>{open === null ? "CREATE YOUR CHRISTMAS TREE" : "OPENING SOON"}</button>;
 
   const sendHelp = async (e: React.FormEvent) => {
@@ -63,7 +66,7 @@ export default function ChristmasSales() {
         <h1>Christmas Together. Even When You&rsquo;re Miles Apart.</h1>
         <p className="lede">One tree. A world of presents. Open them all at the same moment, wherever everyone is.</p>
         {cta}
-        <p className="fine">$49 launch price · one party · up to 25 people</p>
+        <p className="fine">{`$${offer.dollars}${offer.promo ? " launch price" : ""}`} · one party · up to 25 people</p>
         {hasTree && <p className="fine"><a href="/christmas/tree" style={{ color: "var(--gold)" }}>Go to my tree →</a></p>}
       </header>
 
@@ -113,8 +116,8 @@ export default function ChristmasSales() {
         <section>
           <h2>One price, one party</h2>
           <div className="price">
-            <div className="amount">$49</div>
-            <p className="was">Launch price. Regular price $69.</p>
+            <div className="amount">{`$${offer.dollars}`}</div>
+            <p className="was">{offer.promo ? `Launch price. Regular price $${offer.regularDollars}.` : "One payment. No subscription."}</p>
             <ul>
               <li>One private Christmas tree</li>
               <li>Up to 25 people, no accounts needed</li>
@@ -151,6 +154,7 @@ export default function ChristmasSales() {
       <footer>
         <p>Christmas Together is part of Party Together, by Kari Kounkel.</p>
         <p>Your party and everything in it is deleted 30 days after the celebration.</p>
+        <p><a href="/christmas/legal" style={{ color: "var(--gold)" }}>Terms, privacy and refunds</a></p>
       </footer>
     </div>
   );

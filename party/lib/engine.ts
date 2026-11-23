@@ -47,6 +47,7 @@ export type Party = {
   opened_at: Date | null;
   expires_at: Date;
   is_demo: boolean;
+  cancelled_at: Date | null;
 };
 export type Guest = { id: string; party_id: string; name: string; email: string | null; is_host: boolean };
 export type Session = { guest: Guest; party: Party };
@@ -131,6 +132,7 @@ function reviveParty(p: Record<string, unknown>): Party {
     drawn_at: d(p.drawn_at),
     opened_at: d(p.opened_at),
     expires_at: new Date(p.expires_at as string),
+    cancelled_at: d(p.cancelled_at),
   };
 }
 
@@ -487,6 +489,7 @@ export async function treeView(sql: Sql, s: Session) {
       openedAt: party.opened_at,
       expiresAt: party.expires_at,
       isDemo: party.is_demo,
+      cancelledAt: party.cancelled_at,
     },
     me: { id: s.guest.id, name: s.guest.name, isHost: s.guest.is_host, email: s.guest.email },
     guests: guests.map((g) => ({ id: g.id as string, name: g.name as string, isHost: g.is_host as boolean })),
@@ -718,4 +721,41 @@ export async function sendInvitation(sql: Sql, s: Session, guestId: string, send
   }
   await sql`update guests set invited_at = now(), invite_count = invite_count + 1 where id = ${guestId}`;
   return { email: !!g.email, sms: !!g.phone };
+}
+
+// ---------- the daily round: reminders before deletion, then deletion ----------
+
+const longDate = (d: Date) => d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "America/Chicago" });
+
+/**
+ * Warns everyone with an email on file seven days and one day before their party is deleted.
+ * Each warning is sent once per party. Returns how many messages went out.
+ */
+export async function sendExpiryReminders(sql: Sql, send: Messenger = hubMessenger, now = new Date()): Promise<number> {
+  const base = (process.env.APP_URL ?? "https://party.karikounkel.com").replace(/\/$/, "");
+  let sent = 0;
+  for (const [column, days, label] of [["reminder_7d_at", 7, "in one week"], ["reminder_24h_at", 1, "tomorrow"]] as const) {
+    const due = await sql`
+      select id, name, expires_at from parties
+      where expires_at > ${now} and expires_at <= ${new Date(now.getTime() + days * 86400_000)} and ${sql(column)} is null`;
+    for (const p of due) {
+      // Claim it first, so two runs at once cannot both send.
+      const claimed = await sql`update parties set ${sql(column)} = now() where id = ${p.id} and ${sql(column)} is null returning id`;
+      if (!claimed.length) continue;
+      const guests = await sql`select name, email, token_enc from guests where party_id = ${p.id} and email is not null`;
+      for (const g of guests) {
+        const link = `${base}/christmas/tree#t=${decryptToken(g.token_enc)}`;
+        const when = longDate(new Date(p.expires_at));
+        try {
+          await send(sql, {
+            channel: "email", type: "party_expiry", to: g.email,
+            subject: `${p.name} will be deleted ${label}`,
+            body: `Hi ${g.name},\n\n${p.name} and everything in it (letters, photos, thank-yous) will be permanently deleted on ${when}.\n\nIf there is anything you want to keep, open your party and save it before then:\n${link}\n\nAfter that date it cannot be recovered.`,
+          });
+          sent++;
+        } catch { /* one bad address must not stop the rest */ }
+      }
+    }
+  }
+  return sent;
 }

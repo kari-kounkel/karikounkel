@@ -124,3 +124,41 @@ describe("webhook endpoint", () => {
     expect(await count("parties")).toBe(before + 1);
   });
 });
+
+describe("receipts and the daily round", () => {
+  it("emails the buyer their host link, and a mail failure never undoes a paid party", async () => {
+    const outbox: e.Message[] = [];
+    const ev = paid();
+    expect(await handleStripeEvent(sql, ev, async (_s, m) => { outbox.push(m); })).toBe("created");
+    const token = await claimHostToken(sql, (ev.data.object as { id: string }).id);
+    expect(outbox).toHaveLength(1);
+    expect(outbox[0]).toMatchObject({ channel: "email", to: "buyer@example.com", type: "party_purchase" });
+    expect(outbox[0].body).toContain(`#t=${token}`);
+
+    const broken = paid();
+    expect(await handleStripeEvent(sql, broken, async () => { throw new Error("mail is down"); })).toBe("created");
+    expect(await claimHostToken(sql, (broken.data.object as { id: string }).id)).not.toBeNull();
+  });
+
+  it("warns guests with an email a week and a day before deletion, once each", async () => {
+    await sql`update parties set expires_at = now() + interval '10 years'`;
+    const { partyId, hostToken } = await e.createParty(sql, { hostName: "Host", hostEmail: "host@example.com" });
+    const host = await e.sessionFromToken(sql, hostToken);
+    await e.addGuest(sql, host, { name: "June", contact: "june@example.com" });
+    await e.addGuest(sql, host, { name: "No Email" });
+    const outbox: e.Message[] = [];
+    const collect: e.Messenger = async (_s, m) => { outbox.push(m); };
+
+    await sql`update parties set expires_at = now() + interval '20 days' where id = ${partyId}`;
+    expect(await e.sendExpiryReminders(sql, collect)).toBe(0);
+    await sql`update parties set expires_at = now() + interval '6 days' where id = ${partyId}`;
+    expect(await e.sendExpiryReminders(sql, collect)).toBe(2);       // host and June; not the guest without an email
+    expect(await e.sendExpiryReminders(sql, collect)).toBe(0);       // not again
+    expect(outbox.map((m) => m.to).sort()).toEqual(["host@example.com", "june@example.com"]);
+    expect(outbox[0].subject).toContain("in one week");
+    await sql`update parties set expires_at = now() + interval '20 hours' where id = ${partyId}`;
+    expect(await e.sendExpiryReminders(sql, collect)).toBe(2);
+    expect(outbox[2].subject).toContain("tomorrow");
+    expect(await e.sendExpiryReminders(sql, collect)).toBe(0);
+  });
+});
