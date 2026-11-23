@@ -82,6 +82,7 @@ const actions: Record<string, (c: Ctx) => Promise<unknown>> = {
   chooseDate: async ({ sql, s, body }) => (await e.chooseDate(sql, s, id.parse(body.optionId)), { ok: true }),
   updateParty: async ({ sql, s, body }) => (await e.updateParty(sql, s, body.settings), { ok: true }),
   removeGuest: async ({ sql, s, body }) => (await e.removeGuest(sql, s, id.parse(body.guestId)), { ok: true }),
+  screenLink: async ({ s }) => ({ key: e.screenLinkKey(s) }),
   guestLinks: async ({ sql, s }) => ({ guests: await e.listGuestLinks(sql, s) }),
   sendAllInvites: async ({ sql, s }) => e.sendAllInvitations(sql, s),
   drawNames: async ({ sql, s }) => (await e.drawNames(sql, s), { ok: true }),

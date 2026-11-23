@@ -5,7 +5,7 @@
  */
 import type { Sql } from "postgres";
 import { z } from "zod";
-import { decryptToken, drawCycle, encryptToken, hashToken, newToken } from "./secrets";
+import { decryptToken, drawCycle, encryptToken, hashToken, newToken, partyFromScreenKey, screenKey } from "./secrets";
 
 /** The standard party size. A party's own limit lives on the party (parties.max_guests). */
 export const MAX_GUESTS = 25;
@@ -504,6 +504,33 @@ export async function treeView(sql: Sql, s: Session) {
       toId: g.recipient_id as string,
       fromId: hideFrom && g.giver_id !== s.guest.id ? null : (g.giver_id as string),
     })),
+  };
+}
+
+// ---------- the big screen ----------
+
+/** The host's link for a shared television. */
+export function screenLinkKey(s: Session): string {
+  if (!s.guest.is_host) throw deny("Only the host can get the big-screen link");
+  return screenKey(s.party.id);
+}
+
+/**
+ * What a shared screen may show: the room, who is coming, and the wrapped presents by their paper.
+ * It carries no guest's page, no message, no photo, and not who a present is from or for.
+ */
+export async function screenView(sql: Sql, key: unknown) {
+  const partyId = partyFromScreenKey(key);
+  if (!partyId) throw new AppError(401, "bad_token", "This big-screen link is not valid");
+  const [p] = await sql`select * from parties where id = ${partyId} and expires_at > now()`;
+  if (!p) throw new AppError(401, "bad_token", "This party has ended");
+  const party = reviveParty(p);
+  const guests = await sql`select name, is_host, first_seen_at from guests where party_id = ${party.id} order by created_at`;
+  const presents = await sql`select wrap from gifts where party_id = ${party.id} and status = 'wrapped' order by wrapped_at`;
+  return {
+    party: { name: party.name, theme: party.theme, exchangeMode: party.exchange_mode, partyAt: party.party_at, status: party.status, cancelled: !!party.cancelled_at },
+    guests: guests.map((g) => ({ name: g.name as string, isHost: g.is_host as boolean, joined: !!g.first_seen_at })),
+    presents: presents.map((g) => g.wrap as string),
   };
 }
 

@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes, randomInt } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 
 /** A new invitation secret: 256 random bits, URL-safe. */
 export function newToken(): string {
@@ -45,4 +45,22 @@ export function drawCycle<T>(ids: readonly T[]): Array<[T, T]> {
     [perm[i], perm[j]] = [perm[j], perm[i]];
   }
   return ids.map((giver, i) => [giver, perm[i]]);
+}
+
+/**
+ * The big-screen key for a party: the party id plus a signature only this server can make.
+ * It opens a look-only view of the room (names and wrapped presents), never a guest's page,
+ * so it is safe on a television everyone can see. Nothing is stored; the key is recomputed.
+ */
+export function screenKey(partyId: string): string {
+  return `${partyId}.${createHmac("sha256", inviteKey()).update(`screen:${partyId}`).digest("base64url")}`;
+}
+
+/** Returns the party id if the key is genuine, otherwise null. */
+export function partyFromScreenKey(key: unknown): string | null {
+  if (typeof key !== "string" || key.length > 120) return null;
+  const partyId = key.split(".")[0];
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(partyId)) return null;
+  const want = Buffer.from(screenKey(partyId)), got = Buffer.from(key);
+  return want.length === got.length && timingSafeEqual(want, got) ? partyId : null;
 }

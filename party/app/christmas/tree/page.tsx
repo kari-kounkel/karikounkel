@@ -830,6 +830,7 @@ function HostPanel({ token, tree, refresh }: { token: string; tree: Tree; refres
     setSaved("");
     try { await api(token, "updateParty", { settings }); await refresh(); setError(""); setSaved(done); } catch (e) { setSaved(`Not saved: ${e instanceof Error ? e.message : "something went wrong"}`); }
   };
+  const screenUrl = async () => `${window.location.origin}/christmas/screen#k=${(await api<{ key: string }>(token, "screenLink")).key}`;
   const linkFor = (g: HostGuest) => `${window.location.origin}/christmas/tree#t=${g.token}`;
   const locked = party.namesDrawn;
   const opened = party.status === "opened";
@@ -892,6 +893,13 @@ function HostPanel({ token, tree, refresh }: { token: string; tree: Tree; refres
           </div>
 
           {!opened && <ProposeDates token={token} tree={tree} run={run} />}
+
+          <h3>Big screen</h3>
+          <p className="muted">Some of you in one room? Put this on the television. It shows the room, who is coming and the presents arriving, and it opens with everyone else at the big moment. It never shows anyone&rsquo;s own presents or messages, so it is safe for all eyes. Each person still opens their own on their own phone.</p>
+          <div className="row">
+            <button className="btn small" onClick={async () => { await navigator.clipboard.writeText(await screenUrl()); setCopied("screen"); }}>{copied === "screen" ? "Copied ✓" : "Copy big-screen link"}</button>
+            <button className="btn small quiet" onClick={async () => { const w = window.open("", "_blank"); const u = await screenUrl(); if (w) w.location.href = u; else window.location.href = u; }}>Open it here</button>
+          </div>
 
           <h3>Guests ({tree.guests.length} of {party.maxGuests})</h3>
           <p className="muted">Each person gets a personal link. It is their key, so send one link per person. You only need a name; guests can add their own email, and can bring someone themselves.</p>

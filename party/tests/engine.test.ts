@@ -554,3 +554,29 @@ describe("lost your link", () => {
     expect(await code(e.recoverLinks(sql, "", collect))).toBe("invalid");
   });
 });
+
+describe("the big screen", () => {
+  it("shows the room and nothing private, only with the host's genuine link", async () => {
+    const { hostToken } = await e.createParty(sql, { hostName: "Kari", hostEmail: "k@example.com", name: "Screen test" });
+    const host = await e.sessionFromToken(sql, hostToken);
+    const a = await e.addGuest(sql, host, { name: "June" });
+    const june = await e.sessionFromToken(sql, a.token);
+    const giftId = await e.createGift(sql, june, host.guest.id, { message: "A very private letter" });
+    await e.wrapGift(sql, june, giftId);
+
+    expect(() => e.screenLinkKey(june)).toThrow(/Only the host/);
+    const key = e.screenLinkKey(host);
+    const view = await e.screenView(sql, key);
+    expect(view.presents).toHaveLength(1);
+    expect(view.guests.map((g) => g.name)).toEqual(["Kari", "June"]);
+    expect(JSON.stringify(view)).not.toMatch(/private letter|k@example\.com/);
+    expect(JSON.stringify(view)).not.toContain(host.guest.id);
+
+    await expect(e.screenView(sql, key.slice(0, -2) + "xx")).rejects.toThrow(/not valid/);
+    await expect(e.screenView(sql, hostToken)).rejects.toThrow(/not valid/);
+    // The screen key is not an invitation: it cannot be used as a guest.
+    await expect(e.sessionFromToken(sql, key)).rejects.toThrow();
+    await e.openParty(sql, host);
+    expect((await e.screenView(sql, key)).party.status).toBe("opened");
+  });
+});

@@ -251,3 +251,21 @@ details.how .steps3 li::before{content:counter(s);position:absolute;left:0;top:6
 
 /* Confirmation beside "Save party details" */
 .host .row .saved{font-weight:700;font-size:15px;align-self:center}
+
+/* The big screen (/christmas/screen): look-only, for a television the whole room can see */
+.screen{min-height:100svh;background:#160c08}
+.screen .bar .say.big{font-size:22px}
+.screen .roll{list-style:none;margin:0;padding:0;columns:2;column-gap:14px}
+.screen .roll li{font-weight:700;font-size:16px;padding:3px 0;opacity:.55;break-inside:avoid;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.screen .roll li.in{opacity:1}
+.screen.opened .stack{animation:wiggle 1.6s ease-in-out infinite}
+@media (min-width:900px){
+  .screen .room{height:100vh;aspect-ratio:auto;max-height:none}
+  .screen .info{top:26%;width:min(360px,25vw);max-height:60vh;overflow:hidden}
+  .screen .bar .say.big{font-size:clamp(24px,2.3vw,44px);line-height:1.2}
+  .screen .bar .say{font-size:clamp(18px,1.5vw,28px)}
+  .screen .title h1{font-size:clamp(60px,6.5vw,130px)}
+  .screen .title p{font-size:clamp(20px,1.7vw,34px)}
+  .screen .steps li{font-size:clamp(15px,1.2vw,24px)}
+}
+@media (min-width:900px){.screen{height:100vh;overflow:hidden;padding:0}}
