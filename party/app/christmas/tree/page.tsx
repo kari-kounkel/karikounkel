@@ -115,6 +115,8 @@ export default function TreePage() {
   };
   const draft = given.find((g) => g.status === "draft");
   const nextRecipient = recipients.find((r) => !given.some((g) => g.recipientId === r.id));
+  // Nothing left to make: everyone on my list already has a present from me (open gifting always allows more).
+  const allGiven = party.exchangeMode !== "open" && recipients.length > 0 && !nextRecipient && !draft;
   const toList = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   const mainAction = () =>
     draft ? setEditing(draft.id) : nextRecipient && recipients.length === 1 ? startGift(nextRecipient.id) : toList("give");
@@ -175,7 +177,7 @@ export default function TreePage() {
           </ul>
           {opened
             ? <button className="btn gold" onClick={() => toList("mine")}>🎁 Open my presents</button>
-            : <button className="btn" disabled={recipients.length === 0} onClick={mainAction}>🎁 {draft ? "Finish my gift" : wrappedByMe ? "Create another gift" : "Create my gift"}</button>}
+            : <button className="btn" disabled={recipients.length === 0} onClick={mainAction}>🎁 {draft ? "Finish my gift" : !wrappedByMe ? "Create my gift" : allGiven ? "See my gifts" : "Create another gift"}</button>}
         </div>
       </section>
 
