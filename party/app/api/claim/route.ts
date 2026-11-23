@@ -1,10 +1,10 @@
-import { db } from "@/lib/db";
+import { ready } from "@/lib/db";
 import { AppError, rateLimit } from "@/lib/engine";
 import { claimHostToken } from "@/lib/orders";
 
 /** Exchanges a paid checkout session id for the host's personal link secret. */
 export async function POST(req: Request) {
-  const sql = db();
+  const sql = await ready();
   try {
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
     await rateLimit(sql, `claim:${ip}`, 30, 60);

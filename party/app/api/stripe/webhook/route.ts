@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { db } from "@/lib/db";
+import { ready } from "@/lib/db";
 import { handleStripeEvent, type StripeEvent } from "@/lib/orders";
 
 // Signature checking needs only the endpoint's signing secret. No Stripe API key is used anywhere in this app.
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     return new Response("Bad signature", { status: 400 });
   }
   try {
-    const outcome = await handleStripeEvent(db(), event);
+    const outcome = await handleStripeEvent(await ready(), event);
     return Response.json({ received: true, outcome });
   } catch (err) {
     console.error("stripe webhook failed:", err instanceof Error ? err.message : "unknown");

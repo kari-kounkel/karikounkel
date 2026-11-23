@@ -4,14 +4,14 @@
  * of server logs and referrers. Every action is authorized by the engine.
  */
 import { ZodError, z } from "zod";
-import { db } from "@/lib/db";
+import { ready } from "@/lib/db";
 import * as e from "@/lib/engine";
 import { supabaseStore, type PhotoStore } from "@/lib/storage";
 
 const id = z.string().uuid();
 const PHOTO_URL_SECONDS = 600;
 
-type Ctx = { sql: ReturnType<typeof db>; s: e.Session; body: Record<string, unknown>; store: () => PhotoStore };
+type Ctx = { sql: Awaited<ReturnType<typeof ready>>; s: e.Session; body: Record<string, unknown>; store: () => PhotoStore };
 
 async function withPhotoUrls(store: PhotoStore, gifts: e.GiftFull[]) {
   return Promise.all(
@@ -80,7 +80,7 @@ const actions: Record<string, (c: Ctx) => Promise<unknown>> = {
 const READS = new Set(["tree", "myGifts", "received", "gift", "thanks", "guestLinks"]);
 
 export async function POST(req: Request) {
-  const sql = db();
+  const sql = await ready();
   try {
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
     await e.rateLimit(sql, `ip:${ip}`, 600, 60);
