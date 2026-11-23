@@ -403,3 +403,74 @@ describe("guests bringing guests", () => {
     expect(await code(e.addGuest(sql, await fresh(sql, b.tokens[1]), { name: "Late" }))).toBe("invalid");
   });
 });
+
+describe("invitations sent by the system", () => {
+  const outbox: e.Message[] = [];
+  const collect: e.Messenger = async (_sql, m) => { outbox.push(m); };
+
+  it("understands the ways people type a mobile number, and rejects nonsense", () => {
+    expect(e.normalizePhone("(612) 555-0142")).toBe("+16125550142");
+    expect(e.normalizePhone("1-612-555-0142")).toBe("+16125550142");
+    expect(e.normalizePhone("+44 20 7946 0958")).toBe("+442079460958");
+    expect(() => e.normalizePhone("555-0142")).toThrow();
+    expect(e.parseContact("  June@Example.com ")).toEqual({ email: "june@example.com", phone: null });
+    expect(e.parseContact("")).toEqual({ email: null, phone: null });
+  });
+
+  it("emails and texts a guest their own link, and only theirs", async () => {
+    outbox.length = 0;
+    const { host } = await makeParty(sql, 0);
+    const a = await e.addGuest(sql, host, { name: "June", contact: "june@example.com" });
+    const b = await e.addGuest(sql, host, { name: "Pete", contact: "612-555-0142" });
+    const c = await e.addGuest(sql, host, { name: "No Contact" });
+
+    expect(await e.sendInvitation(sql, host, a.id, collect)).toEqual({ email: true, sms: false });
+    expect(await e.sendInvitation(sql, host, b.id, collect)).toEqual({ email: false, sms: true });
+    expect(await code(e.sendInvitation(sql, host, c.id, collect))).toBe("invalid");
+    expect(await code(e.sendInvitation(sql, host, host.guest.id, collect))).toBe("invalid");
+
+    expect(outbox.map((m) => [m.channel, m.to])).toEqual([["email", "june@example.com"], ["sms", "+16125550142"]]);
+    expect(outbox[0].body).toContain(`#t=${a.token}`);
+    expect(outbox[0].html).toContain(`#t=${a.token}`);
+    expect(outbox[1].body).toContain(`#t=${b.token}`);
+    expect(JSON.stringify(outbox)).not.toContain(c.token);
+    expect(outbox[0].body).not.toContain(b.token);
+
+    await e.setGuestContact(sql, host, c.id, "+1 612 555 0199");
+    expect(await e.sendInvitation(sql, host, c.id, collect)).toEqual({ email: false, sms: true });
+  });
+
+  it("will not pester: three sends per guest, then it stops", async () => {
+    outbox.length = 0;
+    const { host } = await makeParty(sql, 0);
+    const g = await e.addGuest(sql, host, { name: "June", contact: "june@example.com" });
+    for (let i = 0; i < 3; i++) await e.sendInvitation(sql, host, g.id, collect);
+    expect(await code(e.sendInvitation(sql, host, g.id, collect))).toBe("invalid");
+    expect(outbox).toHaveLength(3);
+  });
+
+  it("lets a guest invite the person they added, but nobody else, and never across parties", async () => {
+    outbox.length = 0;
+    const p = await makeParty(sql, 2);
+    const other = await makeParty(sql, 1);
+    const [, wife, bystander] = p.sessions;
+    const husband = await e.addGuest(sql, wife, { name: "Husband", contact: "hal@example.com" });
+    expect(await e.sendInvitation(sql, wife, husband.id, collect)).toEqual({ email: true, sms: false });
+    expect(await code(e.sendInvitation(sql, bystander, husband.id, collect))).toBe("forbidden");
+    expect(await code(e.setGuestContact(sql, bystander, husband.id, "x@example.com"))).toBe("forbidden");
+    expect(await code(e.sendInvitation(sql, wife, bystander.guest.id, collect))).toBe("forbidden");
+    expect(await code(e.sendInvitation(sql, other.host, husband.id, collect))).toBe("not_found");
+    expect(outbox).toHaveLength(1);
+  });
+
+  it("neutralises markup in names so an invitation cannot carry someone's HTML", async () => {
+    outbox.length = 0;
+    const { host, partyId } = await makeParty(sql, 0);
+    await sql`update parties set name = '<img src=x onerror=alert(1)>' where id = ${partyId}`;
+    const g = await e.addGuest(sql, await e.sessionFromToken(sql, (await e.listGuestLinks(sql, host))[0].token), { name: "<b>June</b>", contact: "j@example.com" });
+    await e.sendInvitation(sql, await e.sessionFromToken(sql, (await e.listGuestLinks(sql, host))[0].token), g.id, collect);
+    expect(outbox[0].html).not.toContain("<img src=x");
+    expect(outbox[0].html).not.toContain("<b>June</b>");
+    expect(outbox[0].html).toContain("&lt;b&gt;June&lt;/b&gt;");
+  });
+});

@@ -254,10 +254,37 @@ function SendButton({ guest, partyName }: { guest: { name: string; token: string
   );
 }
 
+/** For one guest: have the system send their invitation (if we know how to reach them), or hand over the link yourself. */
+function InviteControls({ token, guest, partyName, changed }: { token: string; guest: HostGuest; partyName: string; changed: () => Promise<void> }) {
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const reach = [guest.email && "email", guest.phone && "text"].filter(Boolean).join(" and ");
+  const act = async (fn: () => Promise<string>) => {
+    setBusy(true);
+    try { setNote(await fn()); await changed(); } catch (e) { setNote(e instanceof Error ? e.message : "Could not do that"); } finally { setBusy(false); }
+  };
+  const addContact = () => {
+    const v = prompt(`Email or mobile number for ${guest.name}:`, guest.email ?? guest.phone ?? "");
+    if (v !== null) act(async () => { await api(token, "setGuestContact", { guestId: guest.id, contact: v }); return v.trim() ? "Saved ✓" : "Removed"; });
+  };
+  return (
+    <>
+      {reach ? (
+        <button className="btn small" disabled={busy} onClick={() => act(async () => { await api(token, "sendInvite", { guestId: guest.id }); return `Sent by ${reach} ✓`; })}>
+          {guest.invitesSent ? "Send again" : "Send invitation"}
+        </button>
+      ) : <SendButton guest={guest} partyName={partyName} />}
+      <button className="btn small quiet" disabled={busy} onClick={addContact}>{reach ? "Edit contact" : "Add email or mobile"}</button>
+      {note && <span className="muted" role="status" style={{ flexBasis: "100%" }}>{note}</span>}
+    </>
+  );
+}
+
 function GuestExtras({ token, tree, refresh }: { token: string; tree: Tree; refresh: () => Promise<void> }) {
   const { party, me } = tree;
-  const [mine, setMine] = useState<{ id: string; name: string; hasVisited: boolean; token: string }[]>([]);
+  const [mine, setMine] = useState<HostGuest[]>([]);
   const [name, setName] = useState("");
+  const [contact, setContact] = useState("");
   const [email, setEmail] = useState(me.email ?? "");
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -278,14 +305,16 @@ function GuestExtras({ token, tree, refresh }: { token: string; tree: Tree; refr
           <ul className="rows">
             {mine.map((g) => (
               <li key={g.id}>
-                <span className="grow"><span className="who">{g.name}</span> <span className={`pill ${g.hasVisited ? "done" : ""}`}>{g.hasVisited ? "Has visited" : "Not yet"}</span></span>
-                <SendButton guest={g} partyName={party.name} />
+                <span className="grow"><span className="who">{g.name}</span> <span className={`pill ${g.hasVisited ? "done" : ""}`}>{g.hasVisited ? "Has visited" : "Not yet"}</span>
+                  {(g.email || g.phone) && <span className="muted" style={{ display: "block" }}>{[g.email, g.phone].filter(Boolean).join(" · ")}</span>}</span>
+                <InviteControls token={token} guest={g} partyName={party.name} changed={load} />
               </li>
             ))}
           </ul>
           {canBring && (
-            <form className="row" style={{ marginTop: 14 }} onSubmit={(e) => { e.preventDefault(); if (name.trim()) run(async () => { await api(token, "addGuest", { name }); setName(""); }); }}>
+            <form className="row" style={{ marginTop: 14 }} onSubmit={(e) => { e.preventDefault(); if (name.trim()) run(async () => { await api(token, "addGuest", { name, contact }); setName(""); setContact(""); }); }}>
               <input aria-label="Their name" className="grow inline-input" style={{ width: "auto", marginTop: 0 }} value={name} maxLength={40} placeholder="Their name" onChange={(e) => setName(e.target.value)} />
+              <input aria-label="Their email or mobile (optional)" className="grow inline-input" style={{ width: "auto", marginTop: 0 }} value={contact} maxLength={200} placeholder="Email or mobile (optional)" onChange={(e) => setContact(e.target.value)} />
               <button className="btn small" type="submit">Add them</button>
             </form>
           )}
@@ -636,6 +665,7 @@ function HostPanel({ token, tree, refresh }: { token: string; tree: Tree; refres
   const { party } = tree;
   const [links, setLinks] = useState<HostGuest[]>([]);
   const [name, setName] = useState("");
+  const [contact, setContact] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState("");
   const [toolsOpen, setToolsOpen] = useState(tree.guests.length < 2); // open for a brand-new party, tucked away after
@@ -698,10 +728,10 @@ function HostPanel({ token, tree, refresh }: { token: string; tree: Tree; refres
             {links.map((g) => (
               <li key={g.id}>
                 <span className="grow"><span className="who">{g.name}</span>{g.isHost && " (you)"} <span className={`pill ${g.hasVisited ? "done" : ""}`}>{g.hasVisited ? "Has visited" : "Not yet"}</span>
-                  {(g.email || g.invitedBy) && <span className="muted" style={{ display: "block" }}>{[g.email, g.invitedBy && `added by ${g.invitedBy}`].filter(Boolean).join(" · ")}</span>}</span>
+                  {(g.email || g.phone || g.invitedBy) && <span className="muted" style={{ display: "block" }}>{[g.email, g.phone, g.invitedBy && `added by ${g.invitedBy}`].filter(Boolean).join(" · ")}</span>}</span>
                 {!g.isHost && (
                   <>
-                    <SendButton guest={g} partyName={party.name} />
+                    <InviteControls token={token} guest={g} partyName={party.name} changed={loadLinks} />
                     <button className="btn small quiet" onClick={async () => { await navigator.clipboard.writeText(linkFor(g)); setCopied(g.id); }}>{copied === g.id ? "Copied ✓" : "Copy link"}</button>
                     {!locked && <button className="linkish" onClick={() => confirm(`Remove ${g.name}?`) && run(() => api(token, "removeGuest", { guestId: g.id }))}>Remove</button>}
                   </>
@@ -710,10 +740,14 @@ function HostPanel({ token, tree, refresh }: { token: string; tree: Tree; refres
             ))}
           </ul>
           {!locked && tree.guests.length < 25 && (
-            <form className="row" style={{ marginTop: 14 }} onSubmit={(e) => { e.preventDefault(); if (name.trim()) run(async () => { await api(token, "addGuest", { name }); setName(""); }); }}>
-              <input aria-label="Guest name" className="grow inline-input" style={{ width: "auto", marginTop: 0 }} value={name} maxLength={40} placeholder="Guest's name" onChange={(e) => setName(e.target.value)} />
-              <button className="btn small" type="submit">Add guest</button>
-            </form>
+            <>
+              <form className="row" style={{ marginTop: 14 }} onSubmit={(e) => { e.preventDefault(); if (name.trim()) run(async () => { await api(token, "addGuest", { name, contact }); setName(""); setContact(""); }); }}>
+                <input aria-label="Guest name" className="grow inline-input" style={{ width: "auto", marginTop: 0 }} value={name} maxLength={40} placeholder="Guest's name" onChange={(e) => setName(e.target.value)} />
+                <input aria-label="Email or mobile (optional)" className="grow inline-input" style={{ width: "auto", marginTop: 0 }} value={contact} maxLength={200} placeholder="Email or mobile (optional)" onChange={(e) => setContact(e.target.value)} />
+                <button className="btn small" type="submit">Add guest</button>
+              </form>
+              <p className="muted">With an email or mobile number, we can send the invitation for you. Please add only people who expect to hear from you.</p>
+            </>
           )}
           {party.exchangeMode === "secret_santa" && !locked && (
             <div style={{ marginTop: 16 }}>

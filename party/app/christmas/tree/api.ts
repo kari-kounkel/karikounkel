@@ -47,7 +47,7 @@ export type Gift = {
   status: "draft" | "wrapped"; wrap: string; bow: string; title: string; message: string; coupon: string;
   links: Link[]; photos: { id: string; url: string }[];
 };
-export type HostGuest = { id: string; name: string; isHost: boolean; hasVisited: boolean; token: string; email?: string | null; invitedBy?: string | null };
+export type HostGuest = { id: string; name: string; isHost: boolean; hasVisited: boolean; token: string; email?: string | null; phone?: string | null; invitesSent?: number; invitedBy?: string | null };
 
 export const WRAPS = ["red", "green", "gold", "snow", "plaid", "stars", "candy", "kraft"];
 export const BOWS = ["gold", "red", "silver", "green", "white"];

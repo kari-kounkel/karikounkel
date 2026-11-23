@@ -183,20 +183,21 @@ export async function updateParty(sql: Sql, s: Session, raw: unknown): Promise<v
 export async function addGuest(
   sql: Sql,
   s: Session,
-  raw: { name: unknown; email?: unknown },
+  raw: { name: unknown; email?: unknown; contact?: unknown },
 ): Promise<{ id: string; token: string }> {
   if (s.party.drawn_at) throw bad("Names are already drawn, so the guest list is locked");
   if (s.party.status === "opened") throw bad("The party has already been opened");
   const name = nameSchema.parse(raw.name);
-  const email = raw.email ? emailSchema.parse(raw.email) : null;
+  const contact = parseContact(raw.contact);
+  const email = raw.email ? emailSchema.parse(raw.email) : contact.email;
   const token = newToken();
   return await sql.begin(async (tx) => {
     await tx`select id from parties where id = ${s.party.id} for no key update`;
     const [{ n }] = await tx`select count(*)::int as n from guests where party_id = ${s.party.id}`;
     if (n >= MAX_GUESTS) throw bad(`A party holds up to ${MAX_GUESTS} people`);
     const [g] = await tx`
-      insert into guests (party_id, name, email, token_hash, token_enc, invited_by)
-      values (${s.party.id}, ${name}, ${email}, ${hashToken(token)}, ${encryptToken(token)}, ${s.guest.is_host ? null : s.guest.id})
+      insert into guests (party_id, name, email, phone, token_hash, token_enc, invited_by)
+      values (${s.party.id}, ${name}, ${email}, ${contact.phone}, ${hashToken(token)}, ${encryptToken(token)}, ${s.guest.is_host ? null : s.guest.id})
       returning id`;
     return { id: g.id as string, token };
   });
@@ -205,9 +206,12 @@ export async function addGuest(
 /** The people I added myself, with their links, so I can pass them along. Never anyone else's. */
 export async function myInvites(sql: Sql, s: Session) {
   const rows = await sql`
-    select id, name, token_enc, first_seen_at from guests
+    select id, name, email, phone, invite_count, token_enc, first_seen_at from guests
     where party_id = ${s.party.id} and invited_by = ${s.guest.id} order by created_at`;
-  return rows.map((r) => ({ id: r.id as string, name: r.name as string, hasVisited: !!r.first_seen_at, token: decryptToken(r.token_enc) }));
+  return rows.map((r) => ({
+    id: r.id as string, name: r.name as string, hasVisited: !!r.first_seen_at, token: decryptToken(r.token_enc),
+    email: r.email as string | null, phone: r.phone as string | null, invitesSent: r.invite_count as number,
+  }));
 }
 
 /** A guest adds or changes their own email address. Only they and the host can see it. */
@@ -228,7 +232,7 @@ export async function removeGuest(sql: Sql, s: Session, guestId: string): Promis
 export async function listGuestLinks(sql: Sql, s: Session) {
   if (!s.guest.is_host) throw deny();
   const rows = await sql`
-    select g.id, g.name, g.email, g.is_host, g.token_enc, g.first_seen_at, i.name as invited_by
+    select g.id, g.name, g.email, g.phone, g.invite_count, g.is_host, g.token_enc, g.first_seen_at, i.name as invited_by
     from guests g left join guests i on i.id = g.invited_by
     where g.party_id = ${s.party.id} order by g.created_at`;
   return rows.map((r) => ({
@@ -238,6 +242,8 @@ export async function listGuestLinks(sql: Sql, s: Session) {
     isHost: r.is_host as boolean,
     hasVisited: !!r.first_seen_at,
     invitedBy: (r.invited_by as string | null) ?? null,
+    phone: (r.phone as string | null) ?? null,
+    invitesSent: r.invite_count as number,
     token: decryptToken(r.token_enc),
   }));
 }
@@ -631,4 +637,85 @@ export async function datePoll(sql: Sql, s: Session) {
       exists (select 1 from date_votes v where v.option_id = o.id and v.guest_id = ${s.guest.id}) as mine
     from date_options o where o.party_id = ${s.party.id} order by o.starts_at`;
   return rows.map((r) => ({ id: r.id as string, startsAt: r.starts_at as Date, voters: r.voters as string[], mine: r.mine as boolean }));
+}
+
+// ---------- invitations sent by the system (email and text) ----------
+
+export type Message = { channel: "email" | "sms"; to: string; subject: string; body: string; html?: string; type: string };
+/** How messages leave the building. Production hands them to the K Co hub; tests collect them. */
+export type Messenger = (sql: Sql, m: Message) => Promise<void>;
+export const hubMessenger: Messenger = async (sql, m) => {
+  await sql`select send_notification(${m.channel}, ${m.to}, ${m.subject}, ${m.body}, ${m.html ?? null}, ${m.type})`;
+};
+
+export const MAX_INVITES_PER_GUEST = 3;
+const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+/** Accepts the ways people type a mobile number and returns it in international form, or throws. */
+export function normalizePhone(raw: string): string {
+  const t = raw.trim();
+  const digits = t.replace(/\D/g, "");
+  if (t.startsWith("+") && digits.length >= 8 && digits.length <= 15) return `+${digits}`;
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
+  throw bad("That does not look like a mobile number");
+}
+
+/** One box, either kind: something with an @ is an email, anything else is treated as a mobile number. */
+export function parseContact(raw: unknown): { email: string | null; phone: string | null } {
+  const t = String(raw ?? "").trim();
+  if (!t) return { email: null, phone: null };
+  return t.includes("@") ? { email: emailSchema.parse(t), phone: null } : { email: null, phone: normalizePhone(t) };
+}
+
+async function manageableGuest(sql: Sql, s: Session, guestId: string) {
+  const [g] = await sql`select id, name, email, phone, token_enc, invited_by, invite_count, is_host from guests where id = ${guestId} and party_id = ${s.party.id}`;
+  if (!g) throw missing("That guest is not at this party");
+  if (!s.guest.is_host && g.invited_by !== s.guest.id) throw deny("You can only do that for people you added");
+  return g;
+}
+
+/** The host (or whoever added this person) records how to reach them. */
+export async function setGuestContact(sql: Sql, s: Session, guestId: string, raw: unknown): Promise<void> {
+  const g = await manageableGuest(sql, s, guestId);
+  const c = parseContact(raw);
+  await sql`update guests set email = ${c.email ?? (c.phone ? g.email : null)}, phone = ${c.phone ?? (c.email ? g.phone : null)} where id = ${guestId}`;
+}
+
+/**
+ * Sends a guest their personal link by email and/or text, to whatever contact details are on file.
+ * Limited to a few sends per guest and a daily budget per party, so the system cannot be used to pester anyone.
+ */
+export async function sendInvitation(sql: Sql, s: Session, guestId: string, send: Messenger = hubMessenger): Promise<{ email: boolean; sms: boolean }> {
+  const g = await manageableGuest(sql, s, guestId);
+  if (g.is_host) throw bad("That is you");
+  if (!g.email && !g.phone) throw bad("Add an email or mobile number for this guest first");
+  if (g.invite_count >= MAX_INVITES_PER_GUEST) throw bad(`An invitation has already gone to ${g.name} ${MAX_INVITES_PER_GUEST} times`);
+  await rateLimit(sql, `invites:${s.party.id}`, 80, 86400);
+
+  const base = (process.env.APP_URL ?? "https://party.karikounkel.com").replace(/\/$/, "");
+  const link = `${base}/christmas/tree#t=${decryptToken(g.token_enc)}`;
+  const from = s.guest.name;
+  const party = s.party.name;
+  if (g.email) {
+    await send(sql, {
+      channel: "email", type: "party_invitation", to: g.email,
+      subject: `${from} invited you to ${party}`,
+      body: `Hi ${g.name},\n\n${from} invited you to ${party}, a Christmas celebration you can join from anywhere.\n\nOpen your personal invitation:\n${link}\n\nThis link is your key to the party, so please keep it to yourself. No account or app is needed.\n\nIf you were not expecting this, you can ignore it.`,
+      html: `<div style="font-family:-apple-system,'Segoe UI',sans-serif;color:#2a1a12;max-width:560px;margin:0 auto">
+<p style="font-size:18px">Hi ${esc(g.name)},</p>
+<p style="font-size:18px"><strong>${esc(from)}</strong> invited you to <strong>${esc(party)}</strong>, a Christmas celebration you can join from anywhere.</p>
+<p style="margin:26px 0"><a href="${link}" style="display:inline-block;background:#b3152d;color:#fff;text-decoration:none;padding:16px 28px;border-radius:12px;font-weight:700;font-size:18px">Open my invitation</a></p>
+<p style="font-size:15px;color:#5a4a3a">This link is your key to the party, so please keep it to yourself. No account or app is needed.</p>
+<p style="font-size:13px;color:#8a7a6a">If you were not expecting this, you can ignore it.</p></div>`,
+    });
+  }
+  if (g.phone) {
+    await send(sql, {
+      channel: "sms", type: "party_invitation", to: g.phone, subject: "",
+      body: `${from} invited you to ${party}. Your personal link (it is your key, keep it to yourself): ${link}`,
+    });
+  }
+  await sql`update guests set invited_at = now(), invite_count = invite_count + 1 where id = ${guestId}`;
+  return { email: !!g.email, sms: !!g.phone };
 }

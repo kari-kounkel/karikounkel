@@ -70,7 +70,9 @@ const actions: Record<string, (c: Ctx) => Promise<unknown>> = {
   sayThanks: async ({ sql, s, body }) => ({ id: await e.postThanks(sql, s, id.parse(body.giftId), body) }),
 
   // Any guest may bring someone; they see only the links of people they added themselves.
-  addGuest: async ({ sql, s, body }) => e.addGuest(sql, s, { name: body.name, email: body.email }),
+  addGuest: async ({ sql, s, body }) => e.addGuest(sql, s, { name: body.name, email: body.email, contact: body.contact }),
+  setGuestContact: async ({ sql, s, body }) => (await e.setGuestContact(sql, s, id.parse(body.guestId), body.contact), { ok: true }),
+  sendInvite: async ({ sql, s, body }) => ({ sent: await e.sendInvitation(sql, s, id.parse(body.guestId)) }),
   myInvites: async ({ sql, s }) => ({ guests: await e.myInvites(sql, s) }),
   setMyEmail: async ({ sql, s, body }) => (await e.setMyEmail(sql, s, body.email), { ok: true }),
   voteDates: async ({ sql, s, body }) => (await e.voteDates(sql, s, body.optionIds), { ok: true }),
