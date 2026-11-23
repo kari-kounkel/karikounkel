@@ -1,14 +1,40 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ApiError, BOWS, REACTIONS, WRAPS, api, loadToken, type Gift, type HostGuest, type Link, type Tree } from "./api";
+import { ApiError, REACTIONS, api, loadToken, type Gift, type HostGuest, type Link, type Tree } from "./api";
+import "@fontsource/great-vibes/latin-400.css";
+import "@fontsource/cormorant-garamond/latin-500.css";
+import "@fontsource/cormorant-garamond/latin-500-italic.css";
+import "@fontsource/cormorant-garamond/latin-700.css";
 import "./tree.css";
 
-const LIGHTS = [
-  [50, 20, "#ffd166"], [42, 30, "#ef476f"], [58, 31, "#06d6a0"], [36, 44, "#ffd166"], [50, 42, "#4cc9f0"],
-  [64, 45, "#ef476f"], [30, 58, "#06d6a0"], [44, 60, "#ef476f"], [57, 58, "#ffd166"], [70, 61, "#4cc9f0"],
-  [22, 76, "#ffd166"], [36, 74, "#4cc9f0"], [50, 77, "#06d6a0"], [64, 74, "#ffd166"], [78, 77, "#ef476f"],
-] as const;
+/** Wrapping papers. Each is a photographed present; older saved values fall back to red. */
+const PAPERS = [
+  { id: "red", label: "Red with gold snowflakes" },
+  { id: "snow", label: "Cream with gold stars and a red velvet bow" },
+  { id: "green", label: "Evergreen with a gold bow" },
+  { id: "plaid", label: "Tartan plaid with a cream bow" },
+];
+const giftArt = (wrap: string) => `/christmas/gift-${{ snow: "cream", green: "green", plaid: "plaid" }[wrap] ?? "red"}.png`;
+
+/** Where presents sit on the rug: back rows small, front rows large, filling outward from the middle. */
+const SLOTS = (() => {
+  const rows = [
+    { bottom: 30, size: 21, n: 5 }, { bottom: 4, size: 25, n: 4 }, { bottom: 54, size: 17, n: 6 },
+    { bottom: -18, size: 28, n: 3 }, { bottom: 72, size: 14, n: 7 },
+  ];
+  const out: { left: number; bottom: number; size: number; z: number }[] = [];
+  const longest = Math.max(...rows.map((r) => r.n));
+  for (let k = 0; k < longest; k++)
+    rows.forEach((r, ri) => {
+      if (k >= r.n) return;
+      const step = Math.min(r.size * 0.86, 100 / r.n);
+      const offset = (k % 2 ? 1 : -1) * Math.ceil(k / 2) * step + (r.n % 2 ? 0 : step / 2);
+      out.push({ left: 50 + offset - r.size / 2 + ((ri * 7 + k * 3) % 5) - 2, bottom: r.bottom, size: r.size, z: 100 - Math.round(r.bottom) });
+    });
+  return out;
+})();
+
 
 const MODE_LABEL = { everyone: "Everyone gives to everyone", secret_santa: "Secret Santa", open: "Open gifting" };
 
@@ -55,102 +81,135 @@ export default function TreePage() {
   if (!token || fatal)
     return (
       <div className="pt">
-        <div className="pt-wrap">
-          <h1>🎄 Christmas Together</h1>
-          <div className="card">
+        <div className="room"><div className="glow" />
+          <div className="title"><h1 className="script">Christmas Together</h1></div>
+          <div className="dock glass">
             <h2>This tree needs your invitation</h2>
-            <p>{fatal || "Open the personal link your host sent you. It is your key to the party."}</p>
+            <p style={{ margin: 0, textAlign: "center" }}>{fatal || "Open the personal link your host sent you. It is your key to the party."}</p>
           </div>
         </div>
       </div>
     );
-  if (!tree) return <div className="pt"><div className="pt-wrap"><h1>🎄</h1><p className="sub">Finding your tree…</p></div></div>;
+  if (!tree)
+    return <div className="pt"><div className="room"><div className="glow" /><div className="title"><h1 className="script">Christmas Together</h1><p className="tag">Finding your tree…</p></div></div></div>;
 
   const { party, me, guests } = tree;
   const opened = party.status === "opened";
   const nameOf = (id: string | null) => guests.find((g) => g.id === id)?.name ?? "";
+  const hostName = guests.find((g) => g.isHost)?.name ?? "the host";
   const recipients =
     party.exchangeMode === "secret_santa" ? (tree.assignment ? [tree.assignment] : []) : guests.filter((g) => g.id !== me.id);
+  const wrappedByMe = given.filter((g) => g.status === "wrapped").length;
+  const when = party.partyAt ? new Date(party.partyAt).toLocaleString([], { dateStyle: "long", timeStyle: "short" }) : null;
 
   const startGift = async (recipientId: string) => {
     const { giftId } = await api<{ giftId: string }>(token, "createGift", { recipientId });
     await refresh();
     setEditing(giftId);
   };
+  /** The one big button: finish a draft, start the next present, or (in a big party) jump to the list. */
+  const draft = given.find((g) => g.status === "draft");
+  const nextRecipient = recipients.find((r) => !given.some((g) => g.recipientId === r.id));
+  const createMyGift = () =>
+    draft ? setEditing(draft.id) : nextRecipient && recipients.length === 1 ? startGift(nextRecipient.id)
+      : document.getElementById("give")?.scrollIntoView({ behavior: "smooth" });
+
+  // Presents that involve me come first, so they are always among the ones on the rug.
+  const mineFirst = [...tree.presents].sort((x, y) => Number(y.toId === me.id || y.fromId === me.id) - Number(x.toId === me.id || x.fromId === me.id));
+  const onRug = mineFirst.slice(0, SLOTS.length);
 
   return (
-    <div className="pt">
-      <div className="pt-wrap">
-        <h1>{party.name}</h1>
-        <p className="sub">
-          {MODE_LABEL[party.exchangeMode]}
-          {party.partyAt && ` · ${new Date(party.partyAt).toLocaleString([], { dateStyle: "full", timeStyle: "short" })}`}
-        </p>
-        <p className="sub">Merry Christmas, {me.name}.</p>
-        {party.meetUrl && (
-          <p style={{ textAlign: "center" }}>
-            <a className="btn gold" href={party.meetUrl} target="_blank" rel="noopener noreferrer">Join the Google Meet</a>
-          </p>
-        )}
+    <div className={`pt ${opened ? "opened" : ""}`}>
+     <div className="stage">
+      <section className="room" aria-label="The Christmas living room">
+        <div className="glow" />
+        <header className="title">
+          <h1 className="script">{party.name}</h1>
+          <p className="tag">{MODE_LABEL[party.exchangeMode]}{when && <><span className="sep"> · </span><span className="when">{when}</span></>}</p>
+          <p className="hello">Merry Christmas, {me.name}</p>
+          {party.meetUrl && <a className="btn meet" href={party.meetUrl} target="_blank" rel="noopener noreferrer">📹 Join the call</a>}
+        </header>
 
-        <div className="scene" aria-hidden="true">
-          <div className="tier t3" /><div className="tier t2" /><div className="tier t1" /><div className="trunk" />
-          <div className="star">⭐</div>
-          {LIGHTS.map(([x, y, c], i) => (
-            <span key={i} className="light" style={{ left: `${x}%`, top: `${y}%`, background: c, boxShadow: `0 0 8px ${c}`, animationDelay: `${(i % 5) * 0.4}s` }} />
-          ))}
-        </div>
+        <aside className="info" aria-label="Party details">
+          <h2>{party.name}</h2>
+          <p>📅 {when ?? "Date to be announced"}</p>
+          <p>👥 {guests.length} {guests.length === 1 ? "guest" : "guests"}</p>
+          <p>🎁 {MODE_LABEL[party.exchangeMode]}</p>
+        </aside>
+
         <div className="pile">
-          {tree.presents.map((p) => {
+          {onRug.map((p, i) => {
+            const slot = SLOTS[i];
             const forMe = p.toId === me.id;
             const fromMe = p.fromId === me.id;
             const label = `Present for ${nameOf(p.toId)}${p.fromId ? ` from ${nameOf(p.fromId)}` : ""}`;
             return (
               <button
                 key={p.id}
-                className={`box w-${p.wrap} b-${p.bow} ${forMe || fromMe ? "mine" : ""} ${opened && forMe ? "pop" : ""}`}
-                title={label}
+                className={`present arrive ${forMe || fromMe ? "mine" : ""}`}
+                style={{ left: `${slot.left}%`, bottom: `${slot.bottom}%`, width: `${slot.size}%`, zIndex: slot.z }}
                 aria-label={label}
-                onClick={() => (fromMe && !opened ? setEditing(p.id) : forMe && opened ? setViewing(p.id) : fromMe && opened ? setViewing(p.id) : undefined)}
-              />
+                title={label}
+                onClick={() => (fromMe && !opened ? setEditing(p.id) : (forMe || fromMe) && opened ? setViewing(p.id) : undefined)}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={giftArt(p.wrap)} alt="" />
+                {forMe && <span className="who">For you</span>}
+                {fromMe && !forMe && <span className="who">From you</span>}
+              </button>
             );
           })}
         </div>
-        <p className="sub">
-          {tree.presents.length === 0 ? "No presents under the tree yet." : `${tree.presents.length} present${tree.presents.length === 1 ? "" : "s"} under the tree.`}
+        <p className="count">
+          {tree.presents.length === 0 ? "The rug is waiting for the first present" : `${tree.presents.length} ${tree.presents.length === 1 ? "present" : "presents"} under the tree`}
         </p>
 
-        {opened ? (
-          <div className="banner">🎁 The presents are open! Tap yours below.</div>
-        ) : (
-          <p className="sub">Presents stay wrapped until {guests.find((g) => g.isHost)?.name ?? "the host"} opens them for everyone at once.</p>
-        )}
+      </section>
+        <div className="dock glass">
+          <h2>Your Party</h2>
+          <ul className="steps">
+            <li className="done"><span className="tick">✓</span> Join the party</li>
+            {party.exchangeMode === "secret_santa" && (
+              <li className={tree.assignment ? "done" : ""}><span className="tick">{tree.assignment ? "✓" : ""}</span>{tree.assignment ? `You drew ${tree.assignment.name} 🤫` : "Wait for names to be drawn"}</li>
+            )}
+            <li className={wrappedByMe ? "done" : ""}><span className="tick">{wrappedByMe ? "✓" : ""}</span>{wrappedByMe ? `${wrappedByMe} wrapped and under the tree` : "Create your gift"}</li>
+            <li className={opened ? "done" : ""}><span className="tick">{opened ? "✓" : ""}</span>{opened ? "Presents are open!" : `${hostName} opens them for everyone at once`}</li>
+          </ul>
+          {opened
+            ? <button className="btn gold wide" onClick={() => document.getElementById("mine")?.scrollIntoView({ behavior: "smooth" })}>🎁 Open my presents</button>
+            : <button className="btn wide" disabled={recipients.length === 0} onClick={createMyGift}>🎁 {draft ? "Finish my gift" : wrappedByMe ? "Create another gift" : "Create my gift"}</button>}
+        </div>
+     </div>
 
+      {opened && <div className="banner">🎄 The presents are open! Yours are glowing.</div>}
+
+      <div className="below">
         {opened && (
-          <div className="card">
-            <h2>Your presents</h2>
-            {received.length === 0 && <p className="muted">Nothing was wrapped for you this time.</p>}
-            <ul className="list">
+          <section className="panel glass" id="mine">
+            <h2>Your Presents</h2>
+            {received.length === 0 && <p className="muted" style={{ textAlign: "center" }}>Nothing was wrapped for you this time.</p>}
+            <ul className="rows">
               {received.map((g) => (
                 <li key={g.id}>
-                  <span className={`box w-${g.wrap} b-${g.bow}`} />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img className="mini" src={giftArt(g.wrap)} alt="" />
                   <span className="grow"><b>{g.title || "A present"}</b><br /><span className="muted">from {g.giverName}</span></span>
-                  <button className="btn small" onClick={() => setViewing(g.id)}>Open</button>
+                  <button className="btn small gold" onClick={() => setViewing(g.id)}>Open</button>
                 </li>
               ))}
             </ul>
-          </div>
+          </section>
         )}
 
-        <div className="card">
-          <h2>{opened ? "Presents you gave" : "Presents to give"}</h2>
+        <section className="panel glass" id="give">
+          <h2>{opened ? "Presents You Gave" : "Presents to Give"}</h2>
           {party.exchangeMode === "secret_santa" && !tree.assignment && (
-            <p className="muted">Names have not been drawn yet. Once the host draws, your person appears here — and only here.</p>
+            <p className="muted" style={{ textAlign: "center" }}>Names have not been drawn yet. Your person will appear here, and only here.</p>
           )}
           {party.exchangeMode === "secret_santa" && tree.assignment && !opened && (
-            <p>🤫 You drew <b>{tree.assignment.name}</b>. Nobody else can see this.</p>
+            <p style={{ textAlign: "center" }}>🤫 You drew <b>{tree.assignment.name}</b>. Nobody else can see this.</p>
           )}
-          <ul className="list">
+          <ul className="rows">
             {recipients.map((r) => {
               const mine = given.filter((g) => g.recipientId === r.id);
               const canAdd = !opened && (party.exchangeMode === "open" ? mine.length < 3 : mine.length === 0);
@@ -159,7 +218,7 @@ export default function TreePage() {
                   <span className="grow"><b>{r.name}</b></span>
                   {mine.map((g) => (
                     <button key={g.id} className="btn small ghost" onClick={() => (opened && g.status === "wrapped" ? setViewing(g.id) : setEditing(g.id))}>
-                      <span className={`pill ${g.status === "wrapped" ? "done" : "draft"}`}>{g.status === "wrapped" ? "Wrapped" : "Unfinished"}</span>{" "}
+                      <span className={`pill ${g.status === "wrapped" ? "done" : "draft"}`}>{g.status === "wrapped" ? "Wrapped" : "Unfinished"}</span>
                       {opened && g.status === "wrapped" ? "See thanks" : "Edit"}
                     </button>
                   ))}
@@ -168,11 +227,11 @@ export default function TreePage() {
               );
             })}
           </ul>
-        </div>
+        </section>
 
         {me.isHost && <HostPanel token={token} tree={tree} refresh={refresh} />}
 
-        <p className="sub" style={{ marginTop: 28, fontSize: 13 }}>
+        <p className="foot">
           This party and everything in it is deleted on {new Date(party.expiresAt).toLocaleDateString([], { dateStyle: "long" })}.
         </p>
       </div>
@@ -263,13 +322,14 @@ function GiftEditor({ token, giftId, close }: { token: string; giftId: string; c
 
   return (
     <div className="modal" role="dialog" aria-modal="true" aria-label="Make a present">
-      <div className="card">
+      <div className="parchment">
         {!gift ? (
           <p>{error || "Unwrapping your draft…"}</p>
         ) : (
           <>
             <div className="row">
-              <span className={`box big w-${gift.wrap} b-${gift.bow}`} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img className="hero" src={giftArt(gift.wrap)} alt="" />
               <div className="grow">
                 <h2>For {gift.recipientName}</h2>
                 <span className="muted">
@@ -300,11 +360,11 @@ function GiftEditor({ token, giftId, close }: { token: string; giftId: string; c
             <div className="field">Links (videos, music, a gift you bought)</div>
             {gift.links.map((l, i) => (
               <div className="row" key={i} style={{ marginTop: 6 }}>
-                <select aria-label="Kind of link" value={l.kind} onChange={(e) => setLink(i, { kind: e.target.value })} style={{ padding: 10, borderRadius: 10 }}>
+                <select aria-label="Kind of link" value={l.kind} onChange={(e) => setLink(i, { kind: e.target.value })} className="inline-input" style={{ width: "auto", marginTop: 0 }}>
                   <option value="youtube">YouTube video</option><option value="music">Music</option>
                   <option value="purchase">Gift I bought</option><option value="giftcard">Gift card</option><option value="other">Other</option>
                 </select>
-                <input aria-label="Link address" className="grow" style={{ padding: 10, borderRadius: 10, border: "1.5px solid #c9c2b2" }} value={l.url} placeholder="https://…" onChange={(e) => setLink(i, { url: e.target.value })} />
+                <input aria-label="Link address" className="grow inline-input" style={{ width: "auto", marginTop: 0 }} value={l.url} placeholder="https://…" onChange={(e) => setLink(i, { url: e.target.value })} />
                 <button className="btn small ghost" onClick={() => change({ links: gift.links.filter((_, j) => j !== i) })}>Remove</button>
               </div>
             ))}
@@ -313,12 +373,13 @@ function GiftEditor({ token, giftId, close }: { token: string; giftId: string; c
             {gift.links.some((l) => l.kind === "giftcard") && <p className="muted">Have the store email the gift card to your person, and link the order here. Please do not paste card numbers or PINs.</p>}
 
             <div className="field">Wrapping paper</div>
-            <div className="swatches">
-              {WRAPS.map((w) => <button key={w} aria-label={`${w} paper`} className={`box w-${w} b-${gift.bow} ${gift.wrap === w ? "on" : ""}`} style={{ cursor: "pointer" }} onClick={() => change({ wrap: w })} />)}
-            </div>
-            <div className="field">Bow</div>
-            <div className="swatches">
-              {BOWS.map((b) => <button key={b} aria-label={`${b} bow`} className={`dot b-${b} ${gift.bow === b ? "on" : ""}`} onClick={() => change({ bow: b })} />)}
+            <div className="papers">
+              {PAPERS.map((w) => (
+                <button key={w.id} aria-label={w.label} aria-pressed={gift.wrap === w.id} className={gift.wrap === w.id ? "on" : ""} onClick={() => change({ wrap: w.id })}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={giftArt(w.id)} alt="" />
+                </button>
+              ))}
             </div>
 
             {error && <div className="err" role="alert">{error}</div>}
@@ -377,7 +438,7 @@ function GiftViewer({ token, giftId, me, close }: { token: string; giftId: strin
 
   return (
     <div className="modal" role="dialog" aria-modal="true" aria-label="Present">
-      <div className="card gift-open">
+      <div className="parchment gift-open reveal">
         {!gift ? <p>{error || "Opening…"}</p> : (
           <>
             <h2>{gift.title || "A present"}</h2>
@@ -398,7 +459,7 @@ function GiftViewer({ token, giftId, me, close }: { token: string; giftId: strin
               );
             })}
 
-            <div className="thread" style={{ marginTop: 18, borderTop: "1px solid #e3dccb", paddingTop: 12 }}>
+            <div className="thread" style={{ marginTop: 18, borderTop: "1px solid #b9a67c", paddingTop: 12 }}>
               <b>Just between you two</b>
               {msgs.map((m) => <p key={m.id}><b>{m.senderId === me ? "You" : m.senderName}:</b> {m.reaction} {m.body}</p>)}
               <div className="row">
@@ -428,6 +489,7 @@ function HostPanel({ token, tree, refresh }: { token: string; tree: Tree; refres
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState("");
+  const [toolsOpen, setToolsOpen] = useState(tree.guests.length < 2); // open for a brand-new party, tucked away after
   const [form, setForm] = useState({ name: party.name, meet_url: party.meetUrl ?? "", party_at: party.partyAt ? toLocalInput(party.partyAt) : "" });
 
   const loadLinks = useCallback(async () => setLinks((await api<{ guests: HostGuest[] }>(token, "guestLinks")).guests), [token]);
@@ -449,8 +511,19 @@ function HostPanel({ token, tree, refresh }: { token: string; tree: Tree; refres
 
   return (
     <>
-      <div className="card">
-        <h2>Host: your party</h2>
+      {!opened && (
+        <section className="panel glass" style={{ textAlign: "center" }}>
+          <h2>The Big Moment</h2>
+          <p style={{ margin: "0 0 12px" }}>When everyone is on the call, press this. Every present opens on every screen at once.</p>
+          <button className="btn gold wide" style={{ fontSize: 24, minHeight: 64 }}
+            onClick={() => confirm("Open the presents for everyone? This cannot be undone.") && run(() => api(token, "openParty"))}>🎁 Open the presents</button>
+          {error && <div className="err" role="alert">{error}</div>}
+        </section>
+      )}
+      <details className="host" open={toolsOpen} onToggle={(e) => setToolsOpen(e.currentTarget.open)}>
+        <summary>Host tools: party details and guests</summary>
+        <div className="inner">
+          <h3>Your party</h3>
         <label className="field">Party name <input value={form.name} maxLength={80} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
         <label className="field">When is the party? <input type="datetime-local" value={form.party_at} disabled={opened} onChange={(e) => setForm({ ...form, party_at: e.target.value })} /></label>
         <label className="field">Your Google Meet link <input value={form.meet_url} placeholder="https://meet.google.com/abc-defg-hij" onChange={(e) => setForm({ ...form, meet_url: e.target.value })} /></label>
@@ -469,12 +542,10 @@ function HostPanel({ token, tree, refresh }: { token: string; tree: Tree; refres
           }))}>Save party details</button>
         </div>
         {error && <div className="err" role="alert">{error}</div>}
-      </div>
 
-      <div className="card">
-        <h2>Host: guests ({tree.guests.length} of 25)</h2>
+          <h3>Guests ({tree.guests.length} of 25)</h3>
         <p className="muted">Each person gets a personal link. Send it however you like; it is their key, so one link per person.</p>
-        <ul className="list">
+        <ul className="rows">
           {links.map((g) => (
             <li key={g.id}>
               <span className="grow"><b>{g.name}</b>{g.isHost && " (you)"} <span className={`pill ${g.hasVisited ? "done" : ""}`}>{g.hasVisited ? "Has visited" : "Not yet"}</span></span>
@@ -489,7 +560,7 @@ function HostPanel({ token, tree, refresh }: { token: string; tree: Tree; refres
         </ul>
         {!locked && tree.guests.length < 25 && (
           <form className="row" style={{ marginTop: 12 }} onSubmit={(e) => { e.preventDefault(); if (name.trim()) run(async () => { await api(token, "addGuest", { name }); setName(""); }); }}>
-            <input aria-label="Guest name" className="grow" style={{ padding: 10, borderRadius: 10, border: "1.5px solid #c9c2b2", fontSize: 16 }} value={name} maxLength={40} placeholder="Guest's name" onChange={(e) => setName(e.target.value)} />
+            <input aria-label="Guest name" className="grow inline-input" style={{ width: "auto", marginTop: 0 }} value={name} maxLength={40} placeholder="Guest's name" onChange={(e) => setName(e.target.value)} />
             <button className="btn" type="submit">Add guest</button>
           </form>
         )}
@@ -501,15 +572,7 @@ function HostPanel({ token, tree, refresh }: { token: string; tree: Tree; refres
         )}
         {party.exchangeMode === "secret_santa" && locked && <p className="muted">Names are drawn and the guest list is locked.</p>}
       </div>
-
-      {!opened && (
-        <div className="card" style={{ textAlign: "center" }}>
-          <h2>Host: the big moment</h2>
-          <p>When everyone is on the call, press this. Every present opens on every screen at once.</p>
-          <button className="btn" style={{ fontSize: 20, padding: "16px 30px" }}
-            onClick={() => confirm("Open the presents for everyone? This cannot be undone.") && run(() => api(token, "openParty"))}>🎁 Open the presents</button>
-        </div>
-      )}
+      </details>
     </>
   );
 }
