@@ -17,6 +17,12 @@ export const ON_SALE = {
   standard: { ...PRICE_LIST.standard, url: "https://buy.stripe.com/3cIdR9aZxdlUeLp3Yg18c0l" },
 } as const;
 
+/**
+ * What a referring creator earns per verified sale of a standard party. Set by the owner.
+ * NOT ACTIVE: no referral tracking or payout exists yet, and none starts without the owner's approval.
+ */
+export const REFERRAL_COMMISSION_DOLLARS = 5;
+
 /** Party sizes the server will accept from a checkout. Anything else falls back to the standard size. */
 export const CAPACITIES = [25, 50, 100] as const;
 export const STANDARD_CAPACITY = 25;
