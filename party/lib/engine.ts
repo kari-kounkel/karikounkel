@@ -704,23 +704,40 @@ export async function sendInvitation(sql: Sql, s: Session, guestId: string, send
   const link = `${base}/christmas/tree#t=${decryptToken(g.token_enc)}`;
   const from = s.guest.name;
   const party = s.party.name;
+  const [{ voting }] = await sql`
+    select (p.party_at is null and exists (select 1 from date_options o where o.party_id = p.id)) as voting
+    from parties p where p.id = ${s.party.id}`;
+  const steps = [
+    "Open your link. No account, no app, no password.",
+    ...(voting ? ["Tap the dates you can make, so we can pick one."] : []),
+    "Wrap a present for the people at the party: a letter, a photo, a memory, a promise. It costs nothing, and nobody can peek.",
+    "On the day, join the video call from your party page.",
+    `${from} opens every present for everyone at the same moment.`,
+    "Read yours, and send a thank-you.",
+  ];
+  const howText = `\n\nHow this works:\n${steps.map((t, i) => `${i + 1}. ${t}`).join("\n")}`;
+  const howHtml = `<p style="font-size:17px;margin:22px 0 6px"><strong>How this works</strong></p><ol style="font-size:16px;line-height:1.6;margin:0;padding-left:22px">${steps.map((t) => `<li>${esc(t)}</li>`).join("")}</ol>`;
+  const voteText = voting ? "\n\nFirst thing to do: tap the dates you can make, so we can pick one." : "";
+  const voteHtml = voting ? `<p style="font-size:18px"><strong>First thing to do:</strong> tap the dates you can make, so we can pick one.</p>` : "";
   if (g.email) {
     await send(sql, {
       channel: "email", type: "party_invitation", to: g.email,
       subject: `${from} invited you to ${party}`,
-      body: `Hi ${g.name},\n\n${from} invited you to ${party}, a Christmas celebration you can join from anywhere.\n\nOpen your personal invitation:\n${link}\n\nThis link is your key to the party, so please keep it to yourself. No account or app is needed.\n\nIf you were not expecting this, you can ignore it.`,
+      body: `Hi ${g.name},\n\n${from} invited you to ${party}, a Christmas celebration you can join from anywhere.${voteText}\n\nOpen your personal invitation:\n${link}${howText}\n\nThis link is your key to the party, so please keep it to yourself.\n\nIf you were not expecting this, you can ignore it.`,
       html: `<div style="font-family:-apple-system,'Segoe UI',sans-serif;color:#2a1a12;max-width:560px;margin:0 auto">
 <p style="font-size:18px">Hi ${esc(g.name)},</p>
 <p style="font-size:18px"><strong>${esc(from)}</strong> invited you to <strong>${esc(party)}</strong>, a Christmas celebration you can join from anywhere.</p>
+${voteHtml}
 <p style="margin:26px 0"><a href="${link}" style="display:inline-block;background:#b3152d;color:#fff;text-decoration:none;padding:16px 28px;border-radius:12px;font-weight:700;font-size:18px">Open my invitation</a></p>
-<p style="font-size:15px;color:#5a4a3a">This link is your key to the party, so please keep it to yourself. No account or app is needed.</p>
+${howHtml}
+<p style="font-size:15px;color:#5a4a3a;margin-top:22px">This link is your key to the party, so please keep it to yourself.</p>
 <p style="font-size:13px;color:#8a7a6a">If you were not expecting this, you can ignore it.</p></div>`,
     });
   }
   if (g.phone) {
     await send(sql, {
       channel: "sms", type: "party_invitation", to: g.phone, subject: "",
-      body: `${from} invited you to ${party}. Your personal link (it is your key, keep it to yourself): ${link}`,
+      body: `${from} invited you to ${party}.${voting ? " Please tap the dates you can make." : ""} Your personal link (it is your key, keep it to yourself): ${link}`,
     });
   }
   await sql`update guests set invited_at = now(), invite_count = invite_count + 1 where id = ${guestId}`;
@@ -762,4 +779,22 @@ export async function sendExpiryReminders(sql: Sql, send: Messenger = hubMesseng
     }
   }
   return sent;
+}
+
+/**
+ * Host only: sends an invitation to every guest who can be reached and has not had one yet.
+ * Guests already invited are left alone, so pressing it twice does not message anyone twice.
+ */
+export async function sendAllInvitations(sql: Sql, s: Session, send: Messenger = hubMessenger): Promise<{ sent: number; alreadyInvited: number; noContact: number; failed: number }> {
+  if (!s.guest.is_host) throw deny("Only the host can invite everyone at once");
+  const guests = await sql`select id, email, phone, invite_count from guests where party_id = ${s.party.id} and not is_host order by created_at`;
+  const result = { sent: 0, alreadyInvited: 0, noContact: 0, failed: 0 };
+  for (const g of guests) {
+    if (!g.email && !g.phone) result.noContact++;
+    else if (g.invite_count > 0) result.alreadyInvited++;
+    else {
+      try { await sendInvitation(sql, s, g.id as string, send); result.sent++; } catch { result.failed++; }
+    }
+  }
+  return result;
 }

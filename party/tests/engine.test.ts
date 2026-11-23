@@ -474,3 +474,53 @@ describe("invitations sent by the system", () => {
     expect(outbox[0].html).toContain("&lt;b&gt;June&lt;/b&gt;");
   });
 });
+
+describe("inviting everyone at once", () => {
+  it("messages each reachable guest once, mentions an open date vote, and is safe to press twice", async () => {
+    const outbox: e.Message[] = [];
+    const collect: e.Messenger = async (_s, m) => { outbox.push(m); };
+    const { host, tokens } = await makeParty(sql, 0);
+    await e.addGuest(sql, host, { name: "June", contact: "june@example.com" });
+    await e.addGuest(sql, host, { name: "Pete", contact: "612-555-0142" });
+    await e.addGuest(sql, host, { name: "No Contact" });
+    await e.proposeDates(sql, host, [new Date(Date.now() + 5 * 86400_000)]);
+    const h = await fresh(sql, tokens[0]);
+
+    expect(await e.sendAllInvitations(sql, h, collect)).toEqual({ sent: 2, alreadyInvited: 0, noContact: 1, failed: 0 });
+    expect(outbox).toHaveLength(2);
+    expect(outbox[0].body).toContain("tap the dates you can make");
+    expect(outbox[1].body).toContain("tap the dates you can make");
+    expect(await e.sendAllInvitations(sql, h, collect)).toEqual({ sent: 0, alreadyInvited: 2, noContact: 1, failed: 0 });
+    expect(outbox).toHaveLength(2);
+
+    const guest = await e.sessionFromToken(sql, (await e.listGuestLinks(sql, h))[1].token);
+    expect(await code(e.sendAllInvitations(sql, guest, collect))).toBe("forbidden");
+  });
+
+  it("keeps going when one address fails, and says so", async () => {
+    const { host } = await makeParty(sql, 0);
+    await e.addGuest(sql, host, { name: "Bad", contact: "bad@example.com" });
+    await e.addGuest(sql, host, { name: "Good", contact: "good@example.com" });
+    const flaky: e.Messenger = async (_s, m) => { if (m.to.startsWith("bad")) throw new Error("bounced"); };
+    expect(await e.sendAllInvitations(sql, host, flaky)).toMatchObject({ sent: 1, failed: 1 });
+  });
+});
+
+describe("the invitation explains itself", () => {
+  it("includes numbered how-it-works steps in the email, and keeps the text message short", async () => {
+    const outbox: e.Message[] = [];
+    const collect: e.Messenger = async (_s, m) => { outbox.push(m); };
+    const { host } = await makeParty(sql, 0);
+    const a = await e.addGuest(sql, host, { name: "June", contact: "june@example.com" });
+    const b = await e.addGuest(sql, host, { name: "Pete", contact: "612-555-0142" });
+    await e.sendInvitation(sql, host, a.id, collect);
+    await e.sendInvitation(sql, host, b.id, collect);
+    expect(outbox[0].body).toContain("How this works:");
+    expect(outbox[0].body).toContain("1. Open your link");
+    expect(outbox[0].body).toContain("Host opens every present");
+    expect(outbox[0].html).toContain("<ol");
+    expect(outbox[0].body).not.toContain("Tap the dates");       // no vote open, so no vote step
+    expect(outbox[1].body.length).toBeLessThan(320);              // a text stays a text
+    expect(outbox[1].body).not.toContain("How this works");
+  });
+});

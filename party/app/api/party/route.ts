@@ -83,6 +83,7 @@ const actions: Record<string, (c: Ctx) => Promise<unknown>> = {
   updateParty: async ({ sql, s, body }) => (await e.updateParty(sql, s, body.settings), { ok: true }),
   removeGuest: async ({ sql, s, body }) => (await e.removeGuest(sql, s, id.parse(body.guestId)), { ok: true }),
   guestLinks: async ({ sql, s }) => ({ guests: await e.listGuestLinks(sql, s) }),
+  sendAllInvites: async ({ sql, s }) => e.sendAllInvitations(sql, s),
   drawNames: async ({ sql, s }) => (await e.drawNames(sql, s), { ok: true }),
   openParty: async ({ sql, s }) => (await e.openParty(sql, s), { ok: true }),
 };

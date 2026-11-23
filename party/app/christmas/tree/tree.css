@@ -193,3 +193,9 @@ details.host .inner{padding:0 2px 20px}
   background:#fdf7e8!important;border:2px solid #c9973b!important;box-shadow:0 4px 14px rgba(0,0,0,.5)!important}
 #ak-pan{top:70px!important;left:12px!important;right:auto!important;bottom:auto!important;max-width:calc(100vw - 24px)!important;max-height:calc(100svh - 90px)!important;z-index:1100!important;border-color:#c9973b!important}
 #ak-hdr,#ak-go,#ak-send{background:linear-gradient(135deg,#1f6b3c,#7d0c1e)!important}
+
+/* "How this works" on the party page */
+details.how{margin-top:20px}
+details.how .steps3{counter-reset:s;list-style:none;margin:0;padding:0}
+details.how .steps3 li{counter-increment:s;position:relative;padding:8px 0 8px 48px;font-size:18px}
+details.how .steps3 li::before{content:counter(s);position:absolute;left:0;top:6px;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:var(--ink);background:var(--gold)}

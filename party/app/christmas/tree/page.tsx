@@ -192,7 +192,9 @@ export default function TreePage() {
       {opened && <div className="banner">🎄 The presents are open!</div>}
 
       <div className="below">
+        {!opened && <HowItWorks startOpen={wrappedByMe === 0} voting={!party.partyAt && tree.datePoll.length > 0} hostName={tree.guests.find((g) => g.isHost)?.name ?? "The host"} isHost={me.isHost} />}
         {!party.partyAt && !opened && tree.datePoll.length > 0 && <DateVote token={token} tree={tree} refresh={refresh} />}
+        {!me.isHost && !me.email && <EmailAsk token={token} refresh={refresh} hostName={tree.guests.find((g) => g.isHost)?.name ?? "the host"} />}
 
         {opened && (
           <section className="sec" id="mine">
@@ -283,6 +285,31 @@ function InviteControls({ token, guest, partyName, changed }: { token: string; g
   );
 }
 
+/** Shown near the top to a guest we cannot email yet (for example, someone invited by text). */
+function EmailAsk({ token, refresh, hostName }: { token: string; refresh: () => Promise<void>; hostName: string }) {
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [later, setLater] = useState(false);
+  if (later) return null;
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    try { await api(token, "setMyEmail", { email: email.trim() }); await refresh(); } catch (err) { setError(err instanceof Error ? err.message : "Could not save"); }
+  };
+  return (
+    <section className="sec" id="add-email">
+      <h2>Add your email</h2>
+      <p>Optional. We will use it only for news about this party, like the date once it is chosen. Only you and {hostName} can see it.</p>
+      <form className="row" onSubmit={save}>
+        <input aria-label="Your email address" type="email" required className="grow inline-input" style={{ width: "auto", marginTop: 0 }} value={email} maxLength={200} placeholder="you@example.com" onChange={(e) => setEmail(e.target.value)} />
+        <button className="btn small" type="submit">Save</button>
+        <button className="linkish" type="button" onClick={() => setLater(true)}>Not now</button>
+      </form>
+      {error && <div className="err" role="alert">{error}</div>}
+    </section>
+  );
+}
+
 function GuestExtras({ token, tree, refresh }: { token: string; tree: Tree; refresh: () => Promise<void> }) {
   const { party, me } = tree;
   const [mine, setMine] = useState<HostGuest[]>([]);
@@ -308,7 +335,7 @@ function GuestExtras({ token, tree, refresh }: { token: string; tree: Tree; refr
           <ul className="rows">
             {mine.map((g) => (
               <li key={g.id}>
-                <span className="grow"><span className="who">{g.name}</span> <span className={`pill ${g.hasVisited ? "done" : ""}`}>{g.hasVisited ? "Has visited" : "Not yet"}</span>
+                <span className="grow"><span className="who">{g.name}</span> <span className={`pill ${g.hasVisited ? "done" : g.invitesSent ? "draft" : ""}`}>{g.hasVisited ? "Opened ✓" : g.invitesSent ? "Invitation sent" : "Not invited yet"}</span>
                   {(g.email || g.phone) && <span className="muted" style={{ display: "block" }}>{[g.email, g.phone].filter(Boolean).join(" · ")}</span>}</span>
                 <InviteControls token={token} guest={g} partyName={party.name} changed={load} />
               </li>
@@ -316,14 +343,15 @@ function GuestExtras({ token, tree, refresh }: { token: string; tree: Tree; refr
           </ul>
           {canBring && (
             <form className="row" style={{ marginTop: 14 }} onSubmit={(e) => { e.preventDefault(); if (name.trim()) run(async () => { await api(token, "addGuest", { name, contact }); setName(""); setContact(""); }); }}>
-              <input aria-label="Their name" className="grow inline-input" style={{ width: "auto", marginTop: 0 }} value={name} maxLength={40} placeholder="Their name" onChange={(e) => setName(e.target.value)} />
-              <input aria-label="Their email or mobile (optional)" className="grow inline-input" style={{ width: "auto", marginTop: 0 }} value={contact} maxLength={200} placeholder="Email or mobile (optional)" onChange={(e) => setContact(e.target.value)} />
+              <input aria-label="Their name" className="grow inline-input" style={{ width: "auto", marginTop: 0, flexBasis: "100%" }} value={name} maxLength={40} placeholder="Their name" onChange={(e) => setName(e.target.value)} />
+              <input aria-label="Their email or mobile (optional)" className="grow inline-input" style={{ width: "auto", marginTop: 0, flexBasis: "100%" }} value={contact} maxLength={200} placeholder="Email or mobile (optional)" onChange={(e) => setContact(e.target.value)} />
               <button className="btn small" type="submit">Add them</button>
             </form>
           )}
         </section>
       )}
 
+      {me.email && (
       <section className="sec" id="email">
         <h2>Your email</h2>
         <p>Optional. Only you and {tree.guests.find((g) => g.isHost)?.name ?? "the host"} can see it. It is for news about this party and nothing else.</p>
@@ -333,7 +361,31 @@ function GuestExtras({ token, tree, refresh }: { token: string; tree: Tree; refr
         </form>
         {error && <div className="err" role="alert">{error}</div>}
       </section>
+      )}
     </>
+  );
+}
+
+// ---------------------------------------------------------------- how this works
+
+function HowItWorks({ startOpen, voting, hostName, isHost }: { startOpen: boolean; voting: boolean; hostName: string; isHost: boolean }) {
+  const [open, setOpen] = useState(startOpen);
+  const steps = [
+    ...(voting ? ["Tap the dates you can make, just below, so we can pick one."] : []),
+    "Wrap a present for the people at the party: a letter, a photo, a memory, a promise. It costs nothing.",
+    "Nobody can peek. What is inside stays sealed until the opening.",
+    "On the day, join the video call from this page.",
+    `${isHost ? "You open" : `${hostName} opens`} every present for everyone at the same moment.`,
+    "Read yours, and send a thank-you.",
+  ];
+  return (
+    <details className="host how" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary>How this works</summary>
+      <div className="inner">
+        <ol className="steps3">{steps.map((t) => <li key={t}>{t}</li>)}</ol>
+        <p className="muted">This page is yours. Come back any time with the same link; your work is saved as you go.</p>
+      </div>
+    </details>
   );
 }
 
@@ -730,10 +782,12 @@ function HostPanel({ token, tree, refresh }: { token: string; tree: Tree; refres
 
           <h3>Guests ({tree.guests.length} of {party.maxGuests})</h3>
           <p className="muted">Each person gets a personal link. It is their key, so send one link per person. You only need a name; guests can add their own email, and can bring someone themselves.</p>
+          <SendAll token={token} guests={links} changed={loadLinks} />
           <ul className="rows">
             {links.map((g) => (
               <li key={g.id}>
-                <span className="grow"><span className="who">{g.name}</span>{g.isHost && " (you)"} <span className={`pill ${g.hasVisited ? "done" : ""}`}>{g.hasVisited ? "Has visited" : "Not yet"}</span>
+                <span className="grow"><span className="who">{g.name}</span>{g.isHost && " (you)"}{" "}
+                  {!g.isHost && <span className={`pill ${g.hasVisited ? "done" : g.invitesSent ? "draft" : ""}`}>{g.hasVisited ? "Opened ✓" : g.invitesSent ? "Invitation sent" : "Not invited yet"}</span>}
                   {(g.email || g.phone || g.invitedBy) && <span className="muted" style={{ display: "block" }}>{[g.email, g.phone, g.invitedBy && `added by ${g.invitedBy}`].filter(Boolean).join(" · ")}</span>}</span>
                 {!g.isHost && (
                   <>
@@ -748,8 +802,8 @@ function HostPanel({ token, tree, refresh }: { token: string; tree: Tree; refres
           {!locked && tree.guests.length < party.maxGuests && (
             <>
               <form className="row" style={{ marginTop: 14 }} onSubmit={(e) => { e.preventDefault(); if (name.trim()) run(async () => { await api(token, "addGuest", { name, contact }); setName(""); setContact(""); }); }}>
-                <input aria-label="Guest name" className="grow inline-input" style={{ width: "auto", marginTop: 0 }} value={name} maxLength={40} placeholder="Guest's name" onChange={(e) => setName(e.target.value)} />
-                <input aria-label="Email or mobile (optional)" className="grow inline-input" style={{ width: "auto", marginTop: 0 }} value={contact} maxLength={200} placeholder="Email or mobile (optional)" onChange={(e) => setContact(e.target.value)} />
+                <input aria-label="Guest name" className="grow inline-input" style={{ width: "auto", marginTop: 0, flexBasis: "100%" }} value={name} maxLength={40} placeholder="Guest's name" onChange={(e) => setName(e.target.value)} />
+                <input aria-label="Email or mobile (optional)" className="grow inline-input" style={{ width: "auto", marginTop: 0, flexBasis: "100%" }} value={contact} maxLength={200} placeholder="Email or mobile (optional)" onChange={(e) => setContact(e.target.value)} />
                 <button className="btn small" type="submit">Add guest</button>
               </form>
               <p className="muted">With an email or mobile number, we can send the invitation for you. Please add only people who expect to hear from you.</p>
@@ -786,10 +840,40 @@ function ProposeDates({ token, tree, run }: { token: string; tree: Tree; run: (f
       <div className="row" style={{ marginTop: 16 }}>
         <button className="btn small" disabled={filled.length === 0}
           onClick={() => (!tree.party.partyAt || confirm("This replaces the date you already set with a vote. Continue?")) && run(() => api(token, "proposeDates", { dates: filled.map((x) => new Date(x).toISOString()) }))}>
-          {tree.datePoll.length ? "Update the vote" : "Ask my guests"}
+          {tree.datePoll.length ? "Update these dates" : "Save these dates"}
         </button>
       </div>
+      {tree.datePoll.length > 0 && !tree.party.partyAt && (
+        <p className="muted" role="status">✓ The vote is open on your party page. Saving dates does not message anyone: guests see the vote when they open their invitation. Send invitations below.</p>
+      )}
     </>
+  );
+}
+
+/** One button for the whole list, with a plain account of what happened. */
+function SendAll({ token, guests, changed }: { token: string; guests: HostGuest[]; changed: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
+  const others = guests.filter((g) => !g.isHost);
+  const waiting = others.filter((g) => (g.email || g.phone) && !g.invitesSent).length;
+  const unreachable = others.filter((g) => !g.email && !g.phone).length;
+  if (!others.length) return null;
+  const go = async () => {
+    setBusy(true);
+    try {
+      const r = await api<{ sent: number; alreadyInvited: number; noContact: number; failed: number }>(token, "sendAllInvites");
+      await changed();
+      setNote([`Sent ${r.sent} invitation${r.sent === 1 ? "" : "s"}.`, r.failed ? `${r.failed} could not be sent; try those one at a time.` : "", r.noContact ? `${r.noContact} guest${r.noContact === 1 ? " has" : "s have"} no email or mobile yet.` : ""].filter(Boolean).join(" "));
+    } catch (e) { setNote(e instanceof Error ? e.message : "Could not send"); } finally { setBusy(false); }
+  };
+  return (
+    <div style={{ margin: "12px 0" }}>
+      <button className="btn wide" disabled={busy || waiting === 0} onClick={() => confirm(`Send invitations to ${waiting} guest${waiting === 1 ? "" : "s"} now?`) && go()}>
+        {busy ? "Sending…" : waiting ? `✉️ Send invitations to ${waiting} guest${waiting === 1 ? "" : "s"}` : "Everyone reachable has been invited ✓"}
+      </button>
+      {note && <p className="muted" role="status">{note}</p>}
+      {!note && unreachable > 0 && <p className="muted">{unreachable} guest{unreachable === 1 ? " has" : "s have"} no email or mobile yet.</p>}
+    </div>
   );
 }
 
