@@ -1,5 +1,6 @@
 "use client";
 
+import { useAskKari } from "../ask-kari";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, REACTIONS, api, loadToken, type Gift, type HostGuest, type Link, type Tree } from "./api";
 import "@fontsource/great-vibes/latin-400.css";
@@ -48,6 +49,7 @@ const PLACES = [
 ];
 
 export default function TreePage() {
+  useAskKari();
   const [token, setToken] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [tree, setTree] = useState<Tree | null>(null);

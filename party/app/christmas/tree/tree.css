@@ -187,3 +187,9 @@ details.host .inner{padding:0 2px 20px}
   .info p{margin:8px 0;font-weight:700;font-size:18px}
   .papers{grid-template-columns:repeat(8,1fr)}
 }
+
+/* ---------- Ask Kari widget, in Christmas colours. These overrides live only on this site. ---------- */
+#ak-bub{top:12px!important;left:12px!important;right:auto!important;bottom:auto!important;width:50px!important;height:50px!important;z-index:900!important;
+  background:#fdf7e8!important;border:2px solid #c9973b!important;box-shadow:0 4px 14px rgba(0,0,0,.5)!important}
+#ak-pan{top:70px!important;left:12px!important;right:auto!important;bottom:auto!important;max-width:calc(100vw - 24px)!important;max-height:calc(100svh - 90px)!important;z-index:1100!important;border-color:#c9973b!important}
+#ak-hdr,#ak-go,#ak-send{background:linear-gradient(135deg,#1f6b3c,#7d0c1e)!important}

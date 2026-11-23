@@ -1,5 +1,6 @@
 "use client";
 
+import { useAskKari } from "./ask-kari";
 import { useEffect, useState } from "react";
 import "@fontsource/great-vibes/latin-400.css";
 import "@fontsource/nunito-sans/latin-400.css";
@@ -26,6 +27,7 @@ const FAQ: [string, string][] = [
 ];
 
 export default function ChristmasSales() {
+  useAskKari();
   const [open, setOpen] = useState<boolean | null>(null);
   const [hasTree, setHasTree] = useState(false);
   const [help, setHelp] = useState({ email: "", body: "", state: "" });
