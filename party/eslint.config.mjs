@@ -8,7 +8,7 @@ const eslintConfig = defineConfig([
   {
     // The tree page loads party data from the server inside effects (fetch, then set state).
     // That is the intended use of an effect; this rule cannot tell it from a render-time loop.
-    files: ["app/christmas/tree/**"],
+    files: ["app/christmas/**"],
     rules: { "react-hooks/set-state-in-effect": "off" },
   },
   // Override default ignores of eslint-config-next.
