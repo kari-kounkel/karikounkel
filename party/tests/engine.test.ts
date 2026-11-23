@@ -524,3 +524,33 @@ describe("the invitation explains itself", () => {
     expect(outbox[1].body).not.toContain("How this works");
   });
 });
+
+describe("lost your link", () => {
+  it("re-sends a guest's own link to the contact on file, reveals nothing, and cannot be hammered", async () => {
+    const outbox: e.Message[] = [];
+    const collect: e.Messenger = async (_s, m) => { outbox.push(m); };
+    const { host } = await makeParty(sql, 0);
+    const tag = Math.random().toString(36).slice(2, 8);
+    const june = await e.addGuest(sql, host, { name: "June", contact: `june-${tag}@example.com` });
+    const pete = await e.addGuest(sql, host, { name: "Pete", contact: "+1612555" + String(Math.floor(1000 + Math.random() * 8999)) });
+    const [{ phone }] = await sql`select phone from guests where id = ${pete.id}`;
+
+    await e.recoverLinks(sql, `JUNE-${tag}@example.com`, collect);
+    expect(outbox).toHaveLength(1);
+    expect(outbox[0].to).toBe(`june-${tag}@example.com`);
+    expect(outbox[0].body).toContain(`#t=${june.token}`);
+    expect(outbox[0].body).not.toContain(pete.token);
+
+    await e.recoverLinks(sql, phone, collect);
+    expect(outbox[1]).toMatchObject({ channel: "sms", to: phone });
+    expect(outbox[1].body).toContain(`#t=${pete.token}`);
+
+    await e.recoverLinks(sql, `nobody-${tag}@example.com`, collect);   // unknown: silence, not an error
+    expect(outbox).toHaveLength(2);
+
+    await e.recoverLinks(sql, `june-${tag}@example.com`, collect);
+    await e.recoverLinks(sql, `june-${tag}@example.com`, collect);
+    expect(await code(e.recoverLinks(sql, `june-${tag}@example.com`, collect))).toBe("slow_down");
+    expect(await code(e.recoverLinks(sql, "", collect))).toBe("invalid");
+  });
+});

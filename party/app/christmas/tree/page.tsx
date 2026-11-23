@@ -11,6 +11,7 @@ import "@fontsource/nunito-sans/latin-800.css";
 import "@fontsource/cormorant-garamond/latin-500.css";
 import "@fontsource/cormorant-garamond/latin-500-italic.css";
 import "@fontsource/cormorant-garamond/latin-700.css";
+import { Proprietary } from "../proprietary";
 import "./tree.css";
 
 /** Wrapping papers. Each is a photographed present; unknown saved values fall back to red. */
@@ -49,7 +50,7 @@ const PLACES = [
 ];
 
 export default function TreePage() {
-  useAskKari();
+
   const [token, setToken] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [tree, setTree] = useState<Tree | null>(null);
@@ -88,6 +89,11 @@ export default function TreePage() {
     return () => clearInterval(timer);
   }, [token, refresh, editing]);
 
+  // Ask Kari in lite mode, already knowing the guest's name and party. For a visitor with no
+  // invitation it loads without a name.
+  const noInvite = ready && (!token || !!fatal);
+  useAskKari(tree ? `Christmas Together · ${tree.party.name}` : "Christmas Together", tree?.me.name, tree?.me.email, !!tree || noInvite);
+
   if (!ready) return <div className="pt" />;
   if (!token || fatal || !tree)
     return (
@@ -97,6 +103,7 @@ export default function TreePage() {
           <div className="title"><h1 className="script">Christmas Together</h1></div>
           <div className="bar">
             <p className="say">{!token || fatal ? fatal || "Open the personal link your host sent you. It is your key to the party." : "Finding your tree…"}</p>
+            {(!token || fatal) && <FindMyParty />}
           </div>
         </div>
       </div>
@@ -236,10 +243,25 @@ export default function TreePage() {
           </ul>
         </section>
 
+        <section className="sec" id="who">
+          <h2>Who is coming</h2>
+          <ul className="people">
+            {guests.map((g) => (
+              <li key={g.id} className={g.joined ? "in" : ""}>
+                <span className="dot" aria-hidden="true">{g.joined ? "✓" : ""}</span>
+                <span>{g.name}{g.id === me.id ? " (you)" : ""}{g.isHost ? " · host" : ""}</span>
+                <span className="muted">{g.joined ? "here" : "not yet"}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
         {!me.isHost && <GuestExtras token={token} tree={tree} refresh={refresh} />}
         {me.isHost && <HostPanel token={token} tree={tree} refresh={refresh} />}
 
+        <HostYourOwn />
         <p className="foot">This party and everything in it is deleted on {new Date(party.expiresAt).toLocaleDateString([], { dateStyle: "long" })}.</p>
+        <Proprietary />
       </div>
 
       {editing && <GiftEditor token={token} giftId={editing} from={me.name} close={() => { setEditing(null); refresh(); }} />}
@@ -366,6 +388,50 @@ function GuestExtras({ token, tree, refresh }: { token: string; tree: Tree; refr
   );
 }
 
+// ---------------------------------------------------------------- host your own
+
+/** An invitation to buy a party of one's own. Appears only once the site can actually take a payment. */
+function HostYourOwn() {
+  const [live, setLive] = useState(false);
+  useEffect(() => {
+    fetch("/api/health").then((r) => r.json()).then((h) => setLive(!!h?.ok && !!h?.settings?.STRIPE_WEBHOOK_SECRET)).catch(() => {});
+  }, []);
+  if (!live) return null;
+  return (
+    <section className="moment" style={{ marginTop: 40 }}>
+      <h2>Want a tree of your own?</h2>
+      <p>Host a Christmas Together for your family, your friends, or your team.</p>
+      <a className="btn gold" href="/christmas?from=party">Host your own party</a>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------- lost your link?
+
+/** For someone on a new phone or a cleared browser: we re-send their personal link to the contact we have on file. */
+function FindMyParty() {
+  const [contact, setContact] = useState("");
+  const [state, setState] = useState<"" | "sending" | "done" | string>("");
+  const go = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setState("sending");
+    const res = await fetch("/api/recover", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contact }) }).catch(() => null);
+    const data = res ? await res.json().catch(() => ({})) : {};
+    setState(res?.ok ? "done" : data.error || "Could not send. Please try again.");
+  };
+  if (state === "done") return <p className="say" role="status">If that email or mobile number is on a party, we have just sent its link there. Check your inbox or messages.</p>;
+  return (
+    <form onSubmit={go} style={{ maxWidth: 460, margin: "0 auto" }}>
+      <p className="say">Lost your link? Enter the email or mobile number your invitation came to, and we will send it again.</p>
+      <div className="row">
+        <input aria-label="Your email or mobile number" required className="grow inline-input" style={{ width: "auto", marginTop: 0 }} value={contact} maxLength={200} placeholder="Email or mobile" onChange={(e) => setContact(e.target.value)} />
+        <button className="btn small" disabled={state === "sending"}>Send my link</button>
+      </div>
+      {state && state !== "sending" && <div className="err" role="alert">{state}</div>}
+    </form>
+  );
+}
+
 // ---------------------------------------------------------------- how this works
 
 function HowItWorks({ startOpen, voting, hostName, isHost }: { startOpen: boolean; voting: boolean; hostName: string; isHost: boolean }) {
@@ -425,12 +491,21 @@ function DateVote({ token, tree, refresh }: { token: string; tree: Tree; refresh
                 </span>
               </span>
             </button>
-            {tree.me.isHost && (
-              <button className="btn small gold" disabled={busy} onClick={() => confirm(`Set the party for ${fmtDate(o.startsAt)}?`) && run(() => api(token, "chooseDate", { optionId: o.id }))}>Choose this date</button>
-            )}
           </li>
         ))}
       </ul>
+      {tree.me.isHost && (
+        <div className="decide">
+          <p><b>You are the host.</b> The boxes above are your own vote, like everyone else&rsquo;s. When you have seen enough answers, end the vote by locking in a date:</p>
+          <div className="row">
+            {tree.datePoll.map((o) => (
+              <button key={o.id} className="btn small gold" disabled={busy} onClick={() => confirm(`Lock in ${fmtDate(o.startsAt)}? This ends the vote and sets the party date for everyone.`) && run(() => api(token, "chooseDate", { optionId: o.id }))}>
+                Lock in {new Date(o.startsAt).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })} ({o.voters.length})
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {error && <div className="err" role="alert">{error}</div>}
     </section>
   );

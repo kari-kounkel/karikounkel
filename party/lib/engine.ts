@@ -473,7 +473,7 @@ export async function getGift(sql: Sql, s: Session, giftId: string): Promise<Gif
 export async function treeView(sql: Sql, s: Session) {
   const [p] = await sql`select * from parties where id = ${s.party.id}`;
   const party = reviveParty(p);
-  const guests = await sql`select id, name, is_host from guests where party_id = ${party.id} order by created_at`;
+  const guests = await sql`select id, name, is_host, first_seen_at from guests where party_id = ${party.id} order by created_at`;
   const presents = await sql`
     select g.id, g.wrap, g.bow, g.giver_id, g.recipient_id from gifts g
     where g.party_id = ${party.id} and g.status = 'wrapped' order by g.wrapped_at`;
@@ -496,7 +496,7 @@ export async function treeView(sql: Sql, s: Session) {
       cancelledAt: party.cancelled_at,
     },
     me: { id: s.guest.id, name: s.guest.name, isHost: s.guest.is_host, email: s.guest.email },
-    guests: guests.map((g) => ({ id: g.id as string, name: g.name as string, isHost: g.is_host as boolean })),
+    guests: guests.map((g) => ({ id: g.id as string, name: g.name as string, isHost: g.is_host as boolean, joined: !!g.first_seen_at })),
     presents: presents.map((g) => ({
       id: g.id as string,
       wrap: g.wrap as string,
@@ -797,4 +797,36 @@ export async function sendAllInvitations(sql: Sql, s: Session, send: Messenger =
     }
   }
   return result;
+}
+
+// ---------- lost your link? ----------
+
+/**
+ * Re-sends personal links to an email address or mobile number, for every live party that contact is on.
+ * Says nothing about whether anything was found, so it cannot be used to discover who is at a party,
+ * and it only ever sends a link to the address already on file for it.
+ */
+export async function recoverLinks(sql: Sql, raw: unknown, send: Messenger = hubMessenger): Promise<void> {
+  const c = parseContact(raw);
+  const key = c.email ?? c.phone;
+  if (!key) throw bad("Enter your email or mobile number");
+  await rateLimit(sql, `recover:${key}`, 3, 86400);
+  const rows = await sql`
+    select g.name, g.token_enc, p.name as party from guests g join parties p on p.id = g.party_id
+    where p.expires_at > now() and ${c.email ? sql`g.email = ${c.email}` : sql`g.phone = ${c.phone}`}
+    order by p.created_at desc limit 5`;
+  const base = (process.env.APP_URL ?? "https://party.karikounkel.com").replace(/\/$/, "");
+  for (const r of rows) {
+    const link = `${base}/christmas/tree#t=${decryptToken(r.token_enc)}`;
+    try {
+      if (c.email) {
+        await send(sql, {
+          channel: "email", type: "party_link", to: c.email, subject: `Your link to ${r.party}`,
+          body: `Hi ${r.name},\n\nHere is your personal link to ${r.party}:\n${link}\n\nIt is your key to the party, so please keep it to yourself.\n\nIf you did not ask for this, you can ignore it.`,
+        });
+      } else {
+        await send(sql, { channel: "sms", type: "party_link", to: c.phone!, subject: "", body: `Your personal link to ${r.party} (it is your key, keep it to yourself): ${link}` });
+      }
+    } catch { /* never reveal a delivery problem to the requester */ }
+  }
 }

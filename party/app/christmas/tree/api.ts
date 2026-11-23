@@ -36,7 +36,7 @@ export type Tree = {
     meetUrl: string | null; status: "active" | "opened"; namesDrawn: boolean; expiresAt: string; cancelledAt: string | null; maxGuests: number;
   };
   me: { id: string; name: string; isHost: boolean; email: string | null };
-  guests: { id: string; name: string; isHost: boolean }[];
+  guests: { id: string; name: string; isHost: boolean; joined: boolean }[];
   presents: { id: string; wrap: string; bow: string; toId: string; fromId: string | null }[];
   assignment: { id: string; name: string } | null;
   datePoll: { id: string; startsAt: string; voters: string[]; mine: boolean }[];

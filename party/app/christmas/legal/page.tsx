@@ -2,6 +2,7 @@ import "@fontsource/great-vibes/latin-400.css";
 import "@fontsource/nunito-sans/latin-400.css";
 import "@fontsource/nunito-sans/latin-700.css";
 import "@fontsource/nunito-sans/latin-800.css";
+import { Proprietary } from "../proprietary";
 import "../tree/tree.css";
 import "../sales.css";
 import "./legal.css";
@@ -27,7 +28,7 @@ export default function Legal() {
         <section id="terms">
           <h2>Terms of service</h2>
           {/* REVIEW: confirm the legal business name and state. */}
-          <p>Christmas Together is part of Party Together, operated by K Co LLC (&ldquo;we&rdquo;). By buying or joining a party you agree to these terms.</p>
+          <p>Christmas Together is part of Party Together, operated by CARES Consulting, Inc. (&ldquo;we&rdquo;). By buying or joining a party you agree to these terms.</p>
           <p><b>What you get.</b> One purchase creates one private party for up to 25 people, the host included. The party stays available until 30 days after its date.</p>
           <p><b>Invitations are keys.</b> Each guest gets a personal link. Whoever has a link can act as that guest, so share each link only with the person it is for. Hosts are responsible for who they invite.</p>
           <p><b>Your content.</b> You keep ownership of what you write and upload. You give us permission to store it and show it to the people at your party, and to no one else. Do not upload anything unlawful, harassing, or that you have no right to share.</p>
@@ -84,6 +85,7 @@ export default function Legal() {
           <h2>Contact</h2>
           <p>Use the support form on the <a href="/christmas">main page</a> and a real person will write back.</p>
         </section>
+        <Proprietary />
       </main>
     </div>
   );

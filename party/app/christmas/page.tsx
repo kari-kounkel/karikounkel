@@ -7,6 +7,7 @@ import "@fontsource/nunito-sans/latin-400.css";
 import "@fontsource/nunito-sans/latin-600.css";
 import "@fontsource/nunito-sans/latin-700.css";
 import "@fontsource/nunito-sans/latin-800.css";
+import { Proprietary } from "./proprietary";
 import "./tree/tree.css";
 import "./sales.css";
 
@@ -26,7 +27,7 @@ const FAQ: [string, string][] = [
 ];
 
 export default function ChristmasSales() {
-  useAskKari();
+  useAskKari("Christmas Together");
   const offer = ON_SALE.standard;
   const [open, setOpen] = useState<boolean | null>(null);
   const [hasTree, setHasTree] = useState(false);
@@ -152,6 +153,7 @@ export default function ChristmasSales() {
         <p>Christmas Together is part of Party Together, by Kari Kounkel.</p>
         <p>Your party and everything in it is deleted 30 days after the celebration.</p>
         <p><a href="/christmas/legal" style={{ color: "var(--gold)" }}>Terms, privacy and refunds</a></p>
+        <Proprietary />
       </footer>
     </div>
   );

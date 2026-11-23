@@ -188,14 +188,42 @@ details.host .inner{padding:0 2px 20px}
   .papers{grid-template-columns:repeat(8,1fr)}
 }
 
-/* ---------- Ask Kari widget, in Christmas colours. These overrides live only on this site. ---------- */
+/* ---------- Ask Kari widget, in evergreen. These overrides live only on this site; the widget's own
+   file and every other site that uses it are untouched. ---------- */
 #ak-bub{top:12px!important;left:12px!important;right:auto!important;bottom:auto!important;width:50px!important;height:50px!important;z-index:900!important;
-  background:#fdf7e8!important;border:2px solid #c9973b!important;box-shadow:0 4px 14px rgba(0,0,0,.5)!important}
-#ak-pan{top:70px!important;left:12px!important;right:auto!important;bottom:auto!important;max-width:calc(100vw - 24px)!important;max-height:calc(100svh - 90px)!important;z-index:1100!important;border-color:#c9973b!important}
-#ak-hdr,#ak-go,#ak-send{background:linear-gradient(135deg,#1f6b3c,#7d0c1e)!important}
+  background:#f1f7f2!important;border:2px solid #1f6b3c!important;box-shadow:0 4px 14px rgba(0,0,0,.5)!important}
+/* the logo is red-to-orange artwork; this turns it evergreen here without changing the image */
+#ak-bub img{width:42px!important;height:42px!important;filter:hue-rotate(118deg) saturate(.8) brightness(.72)!important}
+#ak-pan{top:70px!important;left:12px!important;right:auto!important;bottom:auto!important;max-width:calc(100vw - 24px)!important;max-height:calc(100svh - 90px)!important;z-index:1100!important;
+  border-color:#1f6b3c!important;box-shadow:0 8px 36px rgba(0,0,0,.45)!important}
+#ak-hdr,#ak-go,#ak-send{background:linear-gradient(135deg,#2e8b57,#0f3d2e)!important}
+#ak-intro,#ak-msgs{background:#f4f9f5!important}
+#ak-ctx,#ak-cb,#ak-clip,#ak-inp,#ak-intro input,#ak-intro textarea{background:#f1f7f2!important;border-color:#b9d6c2!important;color:#16301f!important}
+#ak-foot,#ak-reset{border-color:#b9d6c2!important}
+#ak-intro p,#ak-rem-row,#ak-upnote,#ak-reset,#ak-priority-note{color:#3f6b50!important}
+#ak-rem-row input{accent-color:#1f6b3c!important}
+#ak-pan a{color:#1f6b3c!important}
+#ak-hdr img{filter:hue-rotate(118deg) saturate(.8) brightness(.72)!important;background:#fff!important}
+#ak-pan input::placeholder,#ak-pan textarea::placeholder{color:#5f7f6b!important;opacity:1!important}
+/* boxes we have already filled in for the guest (see ask-kari.ts) */
+body.ak-has-name #ak-sn{display:none!important}
+body.ak-has-email #ak-se{display:none!important}
 
 /* "How this works" on the party page */
 details.how{margin-top:20px}
 details.how .steps3{counter-reset:s;list-style:none;margin:0;padding:0}
 details.how .steps3 li{counter-increment:s;position:relative;padding:8px 0 8px 48px;font-size:18px}
 details.how .steps3 li::before{content:counter(s);position:absolute;left:0;top:6px;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:var(--ink);background:var(--gold)}
+
+/* the host's decision, kept visibly apart from the vote */
+.decide{margin-top:18px;padding:16px;border-radius:16px;border:1.5px dashed rgba(243,211,143,.6)}
+.decide p{margin:0 0 12px}
+
+/* who is coming */
+.people{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:2px}
+.people li{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(243,211,143,.14);font-weight:700;font-size:18px}
+.people .dot{flex:none;width:26px;height:26px;border-radius:50%;border:2px solid rgba(243,211,143,.55);display:grid;place-items:center;font-size:15px;color:#fff}
+.people li.in .dot{background:var(--pine);border-color:var(--pine)}
+.people .muted{margin-left:auto;font-weight:600}
+/* the owner's intellectual-property notice */
+.ip{max-width:640px;margin:26px auto 0;padding:0 18px;text-align:center;font-size:13px;line-height:1.5;opacity:.6}
